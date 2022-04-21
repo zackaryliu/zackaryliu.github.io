@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://zackaryliu.github.io</id>
     <title>Deep Kernel</title>
-    <updated>2022-04-21T13:34:43.491Z</updated>
+    <updated>2022-04-21T15:15:16.134Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://zackaryliu.github.io"/>
     <link rel="self" href="https://zackaryliu.github.io/atom.xml"/>
@@ -10,6 +10,21 @@
     <logo>https://zackaryliu.github.io/images/avatar.png</logo>
     <icon>https://zackaryliu.github.io/favicon.ico</icon>
     <rights>All rights reserved 2022, Deep Kernel</rights>
+    <entry>
+        <title type="html"><![CDATA[[ MM ] 聊聊 TTU 和 RMAP]]></title>
+        <id>https://zackaryliu.github.io/post/mm-liao-liao-ttu-he-rmap/</id>
+        <link href="https://zackaryliu.github.io/post/mm-liao-liao-ttu-he-rmap/">
+        </link>
+        <updated>2022-04-21T15:14:58.000Z</updated>
+        <content type="html"><![CDATA[<p>开篇有必要做个名词解释，<br>
+TTU - Try To Umap<br>
+RMAP - Reverse map<br>
+选择一起聊它们两个，想必它们固然是伴有着千丝万缕的联系。<br>
+没错，当内核做出以下操作时，不得不从page的角度出发反向去找到对该page的所有映射，然后一一解除。<br>
+1、内存回收时，因为被回收的page要被写入swap或disk，后续不在原因的位置上<br>
+2、内存迁移时，通常会在compaction过程中涉及，原page要被移动到其它位置上</p>
+]]></content>
+    </entry>
     <entry>
         <title type="html"><![CDATA[New blog, new beginning]]></title>
         <id>https://zackaryliu.github.io/post/beginning/</id>
