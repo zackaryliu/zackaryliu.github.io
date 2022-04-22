@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://zackaryliu.github.io</id>
     <title>Deep Kernel</title>
-    <updated>2022-04-21T15:15:16.134Z</updated>
+    <updated>2022-04-22T15:31:07.936Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://zackaryliu.github.io"/>
     <link rel="self" href="https://zackaryliu.github.io/atom.xml"/>
@@ -26,13 +26,13 @@ RMAP - Reverse map<br>
 ]]></content>
     </entry>
     <entry>
-        <title type="html"><![CDATA[New blog, new beginning]]></title>
+        <title type="html"><![CDATA[New blog, new start]]></title>
         <id>https://zackaryliu.github.io/post/beginning/</id>
         <link href="https://zackaryliu.github.io/post/beginning/">
         </link>
         <updated>2021-12-31T16:00:00.000Z</updated>
-        <content type="html"><![CDATA[<p>2022 - 01 - 01，本站正式上线，作为一个新的开启并继续在技术路线上深耕。</p>
-<p>毕业两年，回顾过去。</p>
+        <content type="html"><![CDATA[<p>2022 - 01 - 01 本站正式上线，作为一个新的开启并继续在技术路线上深耕，<br>
+记录学习路上的点点滴滴。</p>
 ]]></content>
     </entry>
 </feed>
