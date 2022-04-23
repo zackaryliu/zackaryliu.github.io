@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
 <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
-<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1650642375745">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1650727777422">
 <link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
 
 
@@ -32,7 +32,7 @@ RMAP - Reverse map
   <div class="top-container" data-aos="fade-right">
     <div class="top-header-container">
       <a class="site-title-container" href="https://zackaryliu.github.io">
-        <img src="https://zackaryliu.github.io/images/avatar.png?v=1650642375745" class="site-logo">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1650727777422" class="site-logo">
         <h1 class="site-title">Deep Kernel</h1>
       </a>
       <div class="menu-btn" @click="menuVisible = !menuVisible">
@@ -113,6 +113,18 @@ RMAP - Reverse map<br>
 1、new anon page<br>
 当用户空间malloc申请页面后，kernel中由于存在写时分配优化机制，通过在申请时只会分配一个vma，只有当这段空间真正地被写入数据时，所涉及的page才会被分配出来，当未分配前访问到该page时会触发page_fault异常，而新的page就是在异常里面被分配的。<br>
 malloc申请的页面属于anon页，在异常中分配的路径通常如下（正常分配情况，不考虑swap），</p>
+<pre><code>static vm_fault_t __do_page_fault(struct mm_struct *mm, unsigned long addr,
+                                  unsigned int mm_flags, unsigned long vm_flags,
+                                  struct pt_regs *regs)
+{
+    struct vm_area_struct *vma = find_vma(mm, addr);
+    
+    if (unlikely(!vma))
+        return VM_FAULT_BADMAP;
+    ...
+}
+</code></pre>
+<p>接下来我们重点看来do_anonymous_page</p>
 <p>好，我们重点看来do_anonymous_page</p>
 <p>2、new file page<br>
 反映射</p>
