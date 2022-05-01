@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://zackaryliu.github.io</id>
     <title>Deep Kernel</title>
-    <updated>2022-04-28T15:37:25.156Z</updated>
+    <updated>2022-05-01T14:48:54.092Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://zackaryliu.github.io"/>
     <link rel="self" href="https://zackaryliu.github.io/atom.xml"/>
@@ -10,6 +10,561 @@
     <logo>https://zackaryliu.github.io/images/avatar.png</logo>
     <icon>https://zackaryliu.github.io/favicon.ico</icon>
     <rights>All rights reserved 2022, Deep Kernel</rights>
+    <entry>
+        <title type="html"><![CDATA[【 SCHED 】聊聊 ARM64 PSCI 核启动方式]]></title>
+        <id>https://zackaryliu.github.io/post/sched-liao-liao-arm64-psci-he-qi-dong-fang-shi/</id>
+        <link href="https://zackaryliu.github.io/post/sched-liao-liao-arm64-psci-he-qi-dong-fang-shi/">
+        </link>
+        <updated>2022-05-01T14:41:54.000Z</updated>
+        <content type="html"><![CDATA[<p><a name="k3T0A"></a></p>
+<h3 id="0-about-psci">0 # About PSCI</h3>
+<p>关于<code>PSCI</code>的介绍，我在其它博客上找到一段这样的的描述，</p>
+<blockquote>
+<p>The Power State Coordination Interface (PSCI) is an ARM standard that describes a software interface for power management between an operating system (not just Linux) and it’s supervisory firmware. The interface allows an operating system to perform power management tasks such as putting CPUs into an idle (low-power) state, bringing CPUs online/offline and turning the system off.</p>
+</blockquote>
+<p>也就是说<code>PSCI</code>是操作系统和<code>supervisory firmware</code>之间的一套接口，在<code>ARM64</code>上<code>supervisory firmware</code>即为<code>ATF</code>，引入<code>PSCI</code>是为了方便<code>CPU</code>核心电源相关的管理，如核的启动、休眠、热拔插等。</p>
+<p>这篇文章主要是跟踪记录下<code>ARM64</code>在核启动相关的流程，其它如休眠、热拔插相关功能后续再议。</p>
+<p><a name="kFlW3"></a></p>
+<h3 id="1-core-boot">1 # Core boot</h3>
+<p>对了解过系统启动初期流程的同学来说，这个函数<code>kernel_init_freeable</code>的调用时间点应该比较熟悉，而我们这篇记录核启动过程所涉及的重要流程就是在这个函数中调用的。注意，我们这里说的核都为“从核”，均由<code>Boot Core</code>启动，而<code>Boot Core</code>由硬件上电后自动启动，所以无需操心软件启动问题。<br /><img src="https://cdn.nlark.com/yuque/0/2022/png/21766623/1646535122132-736e29b0-cb94-400a-beed-cf8d09cee929.png#clientId=u4b94d750-2384-4&amp;crop=0&amp;crop=0&amp;crop=1&amp;crop=1&amp;from=paste&amp;height=302&amp;id=ud07b92a4&amp;margin=%5Bobject%20Object%5D&amp;name=image.png&amp;originHeight=302&amp;originWidth=614&amp;originalType=binary&amp;ratio=1&amp;rotation=0&amp;showTitle=false&amp;size=27749&amp;status=done&amp;style=none&amp;taskId=uf9d1da00-6c1b-471c-a64c-17509d5993d&amp;title=&amp;width=614" alt="image.png" loading="lazy"><br />这个<code>smp_prepare_cpus</code>函数主要是解析<code>CPU</code>的拓扑图，像<code>cluster</code>、<code>core</code>、<code>thread</code>等参数，在ARM64下这些参数主要由设备树传递，还有另一种高级的传递方式叫<code>ACPI(Advanced Configuration and Power Interface)</code>主要应用在<code>x86</code>平台，拓扑的构建我们在这里不多介绍，后续另记录。</p>
+<p>接下来主要看<code>smp_init</code>的实现过程，</p>
+<pre><code class="language-c">void __init smp_init(void)
+{
+	int num_nodes, num_cpus;
+
+	idle_threads_init();												( 1 )
+	cpuhp_threads_init();												( 2 )
+
+	pr_info(&quot;Bringing up secondary CPUs ...\n&quot;);
+
+	bringup_nonboot_cpus(setup_max_cpus);								( 3 )
+
+	num_nodes = num_online_nodes();
+	num_cpus  = num_online_cpus();
+	pr_info(&quot;Brought up %d node%s, %d CPU%s\n&quot;,
+		num_nodes, (num_nodes &gt; 1 ? &quot;s&quot; : &quot;&quot;),
+		num_cpus,  (num_cpus  &gt; 1 ? &quot;s&quot; : &quot;&quot;));
+
+	/* Any cleanup work */
+	smp_cpus_done(setup_max_cpus);										( 4 )
+}
+</code></pre>
+<p>1、对于每一个<code>core</code>都<code>fork</code>出一个<code>idle</code>进程，并将进程描述结构存储在<code>percpu</code>变量<code>idle_threads</code>中，以备后用；<br />2、<br />3、这就是主要的启核操作，我们直接来挖出它的深层次调用栈，</p>
+<pre><code class="language-c">bringup_nonboot_cpus(setup_max_cpus);
+    cpu_up(cpu, CPUHP_ONLINE);
+        cpuhp_up_callbacks(cpu, st, target);
+            cpuhp_invoke_callback_range(true, cpu, st, target);
+</code></pre>
+<p>关于<code>cpuhp_invoke_callback_range</code>，单拿出来看一下，这里会涉及到一个状态机，在核的<code>up</code>与<code>down</code>状态之间，</p>
+<pre><code class="language-c">static int cpuhp_invoke_callback_range(bool bringup,
+				       unsigned int cpu,
+				       struct cpuhp_cpu_state *st,
+				       enum cpuhp_state target)
+{
+	enum cpuhp_state state;
+	int err = 0;
+
+	while (cpuhp_next_state(bringup, &amp;state, st, target)) {
+		err = cpuhp_invoke_callback(cpu, state, bringup, NULL, NULL);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+</code></pre>
+<p>根据<code>cpuhp_next_state</code>这个函数的名字就能看出来个差不多，意思就是将当前的核状态一步步地转换到目标状态上，每转换一个状态就会调用一次<code>cpuhp_invoke_callback</code>执行对应的执行函数，前提是对应状态的相关回调已经实现，否则会跳过对应的状态，一但达到了目标状态就会停止。<br />关于状态机中的所有状态可以查该文件，</p>
+<pre><code class="language-c">enum cpuhp_state
+</code></pre>
+<p>所有状态对应的回调函数可以在该文件中定义，</p>
+<pre><code class="language-c">static struct cpuhp_step cpuhp_hp_states[]
+</code></pre>
+<p>我们只关注核启动过程中的关键步骤，直接来看状态切换过程中经过的<code>CPUHP_BRINGUP_CPU</code>状态，它对应的回调是<code>bringup_cpu</code>。</p>
+<pre><code class="language-c">bringup_cpu
+    __cpu_up(cpu, idle);
+        boot_secondary(cpu, idle);
+</code></pre>
+<p>关于<code>boot_secondary</code>函数，它是这样实现的，</p>
+<pre><code class="language-c">static int boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	const struct cpu_operations *ops = get_cpu_ops(cpu);
+
+	if (ops-&gt;cpu_boot)
+		return ops-&gt;cpu_boot(cpu);
+
+	return -EOPNOTSUPP;
+}
+</code></pre>
+<p>接口<code>get_cpu_ops</code>返回的<code>ops</code>取决于<code>cpu_ops</code>的值，在<code>ARM64</code>平台上共支持两种<code>cpu_operations</code>，分别是<code>spin_table</code>和<code>psci</code>，而选择使用哪种方法是在设备树中决定的，而具体的解析和设置流程在<code>setup_arch</code>中实现，<br /><img src="https://cdn.nlark.com/yuque/0/2022/png/21766623/1646664093381-f5e43cc5-9d86-4b4e-aa78-5dddc9145996.png#clientId=u66380d84-52f4-4&amp;crop=0&amp;crop=0&amp;crop=1&amp;crop=1&amp;from=paste&amp;height=380&amp;id=uc1182317&amp;margin=%5Bobject%20Object%5D&amp;name=image.png&amp;originHeight=380&amp;originWidth=528&amp;originalType=binary&amp;ratio=1&amp;rotation=0&amp;showTitle=false&amp;size=39468&amp;status=done&amp;style=none&amp;taskId=ua54314e2-69df-42f6-9e77-0b0a4935762&amp;title=&amp;width=528" alt="image.png" loading="lazy"><br />函数<code>psci_dt_init</code>将会根据设备树中指定的<code>psci</code>版本去调用具体的<code>.data</code>方法实现。我们以<code>RK3399</code>的设备树内容为例（设备树内容在文末），</p>
+<pre><code class="language-c">static const struct of_device_id psci_of_match[] __initconst = {
+	{ .compatible = &quot;arm,psci&quot;,	.data = psci_0_1_init},
+	{ .compatible = &quot;arm,psci-0.2&quot;,	.data = psci_0_2_init},
+	{ .compatible = &quot;arm,psci-1.0&quot;,	.data = psci_0_2_init},
+	{},
+};
+</code></pre>
+<p>设备树中指定的版本是<code>1.0</code>，那么接下来会调用到<code>psci_0_2_init</code>，</p>
+<pre><code class="language-c">static int __init psci_0_2_init(struct device_node *np)
+{
+	int err;
+
+	err = get_set_conduit_method(np);
+	err = psci_probe();
+
+	return err;
+}
+</code></pre>
+<p>根据设备树中指定的<code>ATF</code>交互接口来决定<code>invoke_psci_fn</code>的具体回调，这里<code>RK3399</code>配置为<code>smc</code>，所以回调将指定为<code>__invoke_psci_fn_smc</code>。<br />再来看<code>psci_probe</code>，</p>
+<pre><code class="language-c">static int __init psci_probe(void)
+{
+	u32 ver = psci_get_version();										( 1 )
+
+	psci_0_2_set_functions();											( 2 )
+
+	psci_init_migrate();												( 3 )
+
+	return 0;
+}
+</code></pre>
+<p>1、获取<code>PSCI</code>对应的版本号，针对版本做出一些检查；<br />2、主要是配置psci_ops方法集的各个回调，例如<code>cpu_on</code>和<code>cpu_suspend</code>等，在操作对应CPU时最终将会调用到这里；</p>
+<pre><code class="language-c">static int psci_cpu_on(unsigned long cpuid, unsigned long entry_point)
+{
+	int err;
+	u32 fn;
+
+	fn = psci_function_id[PSCI_FN_CPU_ON];
+	err = invoke_psci_fn(fn, cpuid, entry_point, 0);
+	return psci_to_linux_errno(err);
+}
+</code></pre>
+<p>3、</p>
+<figure data-type="image" tabindex="1"><img src="https://cdn.nlark.com/yuque/0/2022/png/21766623/1646580622888-47baf3ce-a229-48a9-a100-19cc79266527.png#clientId=u4b94d750-2384-4&amp;crop=0&amp;crop=0&amp;crop=1&amp;crop=1&amp;from=paste&amp;height=237&amp;id=u6fdb45a4&amp;margin=%5Bobject%20Object%5D&amp;name=image.png&amp;originHeight=237&amp;originWidth=659&amp;originalType=binary&amp;ratio=1&amp;rotation=0&amp;showTitle=false&amp;size=20347&amp;status=done&amp;style=none&amp;taskId=ufadb0732-10da-4216-a667-526f8225eb2&amp;title=&amp;width=659" alt="image.png" loading="lazy"></figure>
+<p><a name="HBTae"></a></p>
+<h4 id="rk3399示例设备树">RK3399示例设备树</h4>
+<pre><code class="language-c">cpus {
+    #address-cells = &lt;0x2&gt;;
+    #size-cells = &lt;0x0&gt;;
+
+    cpu-map {
+
+        cluster0 {
+
+            core0 {
+                cpu = &lt;0x2&gt;;
+            };
+
+            core1 {
+                cpu = &lt;0x3&gt;;
+            };
+
+            core2 {
+                cpu = &lt;0x4&gt;;
+            };
+
+            core3 {
+                cpu = &lt;0x5&gt;;
+            };
+        };
+
+        cluster1 {
+
+            core0 {
+                cpu = &lt;0x6&gt;;
+            };
+
+            core1 {
+                cpu = &lt;0x7&gt;;
+            };
+        };
+    };
+
+    cpu@0 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a53&quot;;
+        reg = &lt;0x0 0x0&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x1e5&gt;;
+        clocks = &lt;0x8 0x8&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x64&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xb&gt;;
+        cpu-supply = &lt;0xc&gt;;
+        phandle = &lt;0x2&gt;;
+    };
+
+    cpu@1 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a53&quot;;
+        reg = &lt;0x0 0x1&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x1e5&gt;;
+        clocks = &lt;0x8 0x8&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x64&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xb&gt;;
+        cpu-supply = &lt;0xc&gt;;
+        phandle = &lt;0x3&gt;;
+    };
+
+    cpu@2 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a53&quot;;
+        reg = &lt;0x0 0x2&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x1e5&gt;;
+        clocks = &lt;0x8 0x8&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x64&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xb&gt;;
+        cpu-supply = &lt;0xc&gt;;
+        phandle = &lt;0x4&gt;;
+    };
+
+    cpu@3 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a53&quot;;
+        reg = &lt;0x0 0x3&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x1e5&gt;;
+        clocks = &lt;0x8 0x8&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x64&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xb&gt;;
+        cpu-supply = &lt;0xc&gt;;
+        phandle = &lt;0x5&gt;;
+    };
+
+    cpu@100 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a72&quot;;
+        reg = &lt;0x0 0x100&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x400&gt;;
+        clocks = &lt;0x8 0x9&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x1b4&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xd&gt;;
+        cpu-supply = &lt;0xe&gt;;
+        phandle = &lt;0x6&gt;;
+    };
+
+    cpu@101 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a72&quot;;
+        reg = &lt;0x0 0x101&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x400&gt;;
+        clocks = &lt;0x8 0x9&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x1b4&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xd&gt;;
+        cpu-supply = &lt;0xe&gt;;
+        phandle = &lt;0x7&gt;;
+    };
+
+    idle-states {
+        entry-method = &quot;psci&quot;;
+
+        cpu-sleep {
+            compatible = &quot;arm,idle-state&quot;;
+            local-timer-stop;
+            arm,psci-suspend-param = &lt;0x10000&gt;;
+            entry-latency-us = &lt;0x78&gt;;
+            exit-latency-us = &lt;0xfa&gt;;
+            min-residency-us = &lt;0x384&gt;;
+            phandle = &lt;0x9&gt;;
+        };
+
+        cluster-sleep {
+            compatible = &quot;arm,idle-state&quot;;
+            local-timer-stop;
+            arm,psci-suspend-param = &lt;0x1010000&gt;;
+            entry-latency-us = &lt;0x190&gt;;
+            exit-latency-us = &lt;0x1f4&gt;;
+            min-residency-us = &lt;0x7d0&gt;;
+            phandle = &lt;0xa&gt;;
+        };
+    };
+};
+</code></pre>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[【 SCHED 】聊聊 CPU 核拓扑解析]]></title>
+        <id>https://zackaryliu.github.io/post/sched-liao-liao-cpu-he-tuo-bu-jie-xi/</id>
+        <link href="https://zackaryliu.github.io/post/sched-liao-liao-cpu-he-tuo-bu-jie-xi/">
+        </link>
+        <updated>2022-05-01T14:29:38.000Z</updated>
+        <content type="html"><![CDATA[<p>注：本篇所解析的fdt源描述附在文末</p>
+<p><a name="PrcGd"></a></p>
+<h3 id="一-关于核状态">一、关于核状态</h3>
+<p>系统中CPU核一般在遍历时有四种状态，在本篇内容形状处有必要小小补充一下这部分的知识，<br /><img src="https://cdn.nlark.com/yuque/0/2022/png/21766623/1651367204771-89d99179-2a90-4a10-8694-93773b024765.png#clientId=uebe9c810-6c11-4&amp;crop=0&amp;crop=0&amp;crop=1&amp;crop=1&amp;from=paste&amp;height=504&amp;id=u52dfdfda&amp;margin=%5Bobject%20Object%5D&amp;name=image.png&amp;originHeight=504&amp;originWidth=1254&amp;originalType=binary&amp;ratio=1&amp;rotation=0&amp;showTitle=false&amp;size=430552&amp;status=done&amp;style=none&amp;taskId=ube09bde4-ab3f-41e0-a252-532c7370027&amp;title=&amp;width=1254" alt="image.png" loading="lazy"><br />源码就不去分析了，按照上图所示的流程就能将每个核的四种状态补齐。<br />但我们应该知道，核是可以支持hotplug的，其中必然有些操作和这块东西扯上联系，可能的话后续单独补上这块内容。<br>
+<a name="j60TO"></a></p>
+<h3 id="二-核拓扑解析">二、核拓扑解析</h3>
+<p>关于核拓扑的解析过程主要入口在smp_prepare_cpus，那我们就以它为主攻点，层层击破。</p>
+<pre><code class="language-c">void __init smp_prepare_cpus(unsigned int max_cpus)
+{
+	...
+
+	init_cpu_topology();												( 1 )
+
+	this_cpu = smp_processor_id();
+	store_cpu_topology(this_cpu);										( 2 )
+	numa_store_cpu_info(this_cpu);										( 3 )
+	numa_add_cpu(this_cpu);												( 4 )
+
+	if (max_cpus == 0)													( 5 )
+		return;
+
+	for_each_possible_cpu(cpu) {										( 6 )
+
+		per_cpu(cpu_number, cpu) = cpu;
+
+		if (cpu == smp_processor_id())									( 7 )
+			continue;
+
+		ops = get_cpu_ops(cpu);
+		err = ops-&gt;cpu_prepare(cpu);									( 8 )
+
+		set_cpu_present(cpu, true);										( 9 )
+		numa_store_cpu_info(cpu);										( 10 )
+	}
+}
+</code></pre>
+<p>1）拓扑解析的核心过程，在下面详细分析；<br />2）<br />3）TODO numa相关<br />4）TODO numa相关<br />5）<br />6）依次遍历每个已被系统检索到的核心；<br />7）<br />8）获取系统中配置的核配置操作集并调用cpu_prepare方法，操作集也是根据fdt中的参数解析出来的，这里配置为PSCI的方式，关于详细的PSCI操作分析，可见本站其它文章；<br />9）将当前核的状态设为present；<br />10）TODO numa相关</p>
+<p>在init_cpu_topology中先会重置每个核对应的cpu_topology结构，然后调用parse_dt_topology针对核描述进一步解析，我们来看源码，</p>
+<pre><code class="language-c">static int __init parse_dt_topology(void)
+{
+	struct device_node *cn, *map;
+
+	cn = of_find_node_by_path(&quot;/cpus&quot;);
+	map = of_get_child_by_name(cn, &quot;cpu-map&quot;);							( 1 )
+
+	ret = parse_cluster(map, 0);										( 2 )
+
+	topology_normalize_cpu_scale();										( 3 )
+    ...
+}
+</code></pre>
+<p>1）在fdt中检索出&quot;/cpus&quot;根节点，并在其中定位到&quot;cpu-map&quot;子节点，标准的平台都应该在此处将核拓扑描述清楚；<br />2）以&quot;cluster&quot;节点再次切入内部，继续进行层层解析，这一块逻辑注重fdt的解析，我们以一张图来概括；<br /><img src="https://cdn.nlark.com/yuque/0/2022/png/21766623/1651362626483-c61a7a33-7419-48d2-9882-483e7e69c782.png#clientId=uebe9c810-6c11-4&amp;crop=0&amp;crop=0&amp;crop=1&amp;crop=1&amp;from=paste&amp;height=377&amp;id=JgN9U&amp;margin=%5Bobject%20Object%5D&amp;name=image.png&amp;originHeight=377&amp;originWidth=1014&amp;originalType=binary&amp;ratio=1&amp;rotation=0&amp;showTitle=false&amp;size=227060&amp;status=done&amp;style=none&amp;taskId=ub0ef6b1e-24a9-4971-9df1-de798eb53c3&amp;title=&amp;width=1014" alt="image.png" loading="lazy"><br />3）计算综合算力，在下面进行分析；</p>
+<p>拓扑解析parse_core中也包含算力解析，主要在topology_parse_cpu_capacity中实现，我们来看源码，</p>
+<pre><code class="language-c">bool __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
+{
+    ...
+    ret = of_property_read_u32(cpu_node, &quot;capacity-dmips-mhz&quot;,
+				   &amp;cpu_capacity);										( 1 )
+	if (!ret) {
+		if (!raw_capacity) {
+			raw_capacity = kcalloc(num_possible_cpus(),
+					       sizeof(*raw_capacity),
+					       GFP_KERNEL);
+		}
+		raw_capacity[cpu] = cpu_capacity;								( 2 )
+		pr_debug(&quot;cpu_capacity: %pOF cpu_capacity=%u (raw)\n&quot;,
+			cpu_node, raw_capacity[cpu]);
+
+		cpu_clk = of_clk_get(cpu_node, 0);
+		if (!PTR_ERR_OR_ZERO(cpu_clk)) {
+			per_cpu(freq_factor, cpu) =
+				clk_get_rate(cpu_clk) / 1000;							( 3 )
+			clk_put(cpu_clk);
+		}
+	}
+    ...
+}
+</code></pre>
+<p>1）解析核的&quot;capacity-dmips-mhz&quot;描述作为基础算力值；<br />2）将基础算力值转存到raw_capacity以备后面使用；<br />3）根据核节点中指定的时钟获取出对应的时钟频率；</p>
+<pre><code class="language-c">void topology_normalize_cpu_scale(void)
+{
+	u64 capacity;
+	u64 capacity_scale;
+	int cpu;
+
+	if (!raw_capacity)
+		return;
+
+	capacity_scale = 1;
+	for_each_possible_cpu(cpu) {
+		capacity = raw_capacity[cpu] * per_cpu(freq_factor, cpu);
+		capacity_scale = max(capacity, capacity_scale);					( 1 )
+	}
+
+	pr_debug(&quot;cpu_capacity: capacity_scale=%llu\n&quot;, capacity_scale);
+	for_each_possible_cpu(cpu) {
+		capacity = raw_capacity[cpu] * per_cpu(freq_factor, cpu);
+		capacity = div64_u64(capacity &lt;&lt; SCHED_CAPACITY_SHIFT,
+			capacity_scale);											( 2 )
+		topology_set_cpu_scale(cpu, capacity);							( 3 )
+		pr_debug(&quot;cpu_capacity: CPU%d cpu_capacity=%lu\n&quot;,
+			cpu, topology_get_cpu_scale(cpu));
+	}
+}
+</code></pre>
+<p>1）通过遍历和计算得出最大的基础算力和对应频率的乘积转存到capacity_scale；<br />2）实际算力的最终计算公式可表示为<br /><img src="https://cdn.nlark.com/yuque/__latex/5b00eebae914ba02bc6a7713c52a4843.svg#card=math&amp;code=capacity%EF%BC%9D%5Cfrac%7B%28raw%5C_capacity%5Bcpu%5D%20%2A%20per%5C_cpu%28freq%5C_factor%2C%20cpu%29%29%20%3C%3C%20SCHED%5C_CAPACITY%5C_SHIFT%7D%7Bmax%28raw_capacity%5Bcpu%5D%20%2A%20per%5C_cpu%28freq%5C_factor%2C%20cpu%29%29%7D&amp;id=FVnqr" alt="" loading="lazy"><br />3）计算出实际算力并转存到cpu_scale，后续该值可能通过topology_get_cpu_scale接口获取到；<br>
+<a name="Jl0vb"></a></p>
+<h3 id="三-核拓扑及算力调试">三、核拓扑及算力调试</h3>
+<p><a name="XBBsV"></a></p>
+<h3 id="附-参考fdt">附: 参考FDT</h3>
+<pre><code class="language-c">cpus {
+    #address-cells = &lt;0x2&gt;;
+    #size-cells = &lt;0x0&gt;;
+
+    cpu-map {
+
+        cluster0 {
+
+            core0 {
+                cpu = &lt;0x2&gt;;
+            };
+
+            core1 {
+                cpu = &lt;0x3&gt;;
+            };
+
+            core2 {
+                cpu = &lt;0x4&gt;;
+            };
+
+            core3 {
+                cpu = &lt;0x5&gt;;
+            };
+        };
+
+        cluster1 {
+
+            core0 {
+                cpu = &lt;0x6&gt;;
+            };
+
+            core1 {
+                cpu = &lt;0x7&gt;;
+            };
+        };
+    };
+
+    cpu@0 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a53&quot;;
+        reg = &lt;0x0 0x0&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x1e5&gt;;
+        clocks = &lt;0x8 0x8&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x64&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xb&gt;;
+        cpu-supply = &lt;0xc&gt;;
+        phandle = &lt;0x2&gt;;
+    };
+
+    cpu@1 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a53&quot;;
+        reg = &lt;0x0 0x1&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x1e5&gt;;
+        clocks = &lt;0x8 0x8&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x64&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xb&gt;;
+        cpu-supply = &lt;0xc&gt;;
+        phandle = &lt;0x3&gt;;
+    };
+
+    cpu@2 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a53&quot;;
+        reg = &lt;0x0 0x2&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x1e5&gt;;
+        clocks = &lt;0x8 0x8&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x64&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xb&gt;;
+        cpu-supply = &lt;0xc&gt;;
+        phandle = &lt;0x4&gt;;
+    };
+
+    cpu@3 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a53&quot;;
+        reg = &lt;0x0 0x3&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x1e5&gt;;
+        clocks = &lt;0x8 0x8&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x64&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xb&gt;;
+        cpu-supply = &lt;0xc&gt;;
+        phandle = &lt;0x5&gt;;
+    };
+
+    cpu@100 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a72&quot;;
+        reg = &lt;0x0 0x100&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x400&gt;;
+        clocks = &lt;0x8 0x9&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x1b4&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;; 
+        operating-points-v2 = &lt;0xd&gt;;
+        cpu-supply = &lt;0xe&gt;;
+        phandle = &lt;0x6&gt;;
+    };
+
+    cpu@101 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a72&quot;;
+        reg = &lt;0x0 0x101&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x400&gt;;
+        clocks = &lt;0x8 0x9&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x1b4&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xd&gt;;
+        cpu-supply = &lt;0xe&gt;;
+        phandle = &lt;0x7&gt;;
+    };
+
+    idle-states {
+        entry-method = &quot;psci&quot;;
+
+        cpu-sleep {
+            compatible = &quot;arm,idle-state&quot;;
+            local-timer-stop;
+            arm,psci-suspend-param = &lt;0x10000&gt;;
+            entry-latency-us = &lt;0x78&gt;;
+            exit-latency-us = &lt;0xfa&gt;;
+            min-residency-us = &lt;0x384&gt;;
+            phandle = &lt;0x9&gt;;
+        };
+
+        cluster-sleep {
+            compatible = &quot;arm,idle-state&quot;;
+            local-timer-stop;
+            arm,psci-suspend-param = &lt;0x1010000&gt;;
+            entry-latency-us = &lt;0x190&gt;;
+            exit-latency-us = &lt;0x1f4&gt;;
+            min-residency-us = &lt;0x7d0&gt;;
+            phandle = &lt;0xa&gt;;
+        };
+    };
+};
+</code></pre>
+]]></content>
+    </entry>
     <entry>
         <title type="html"><![CDATA[【 SCHED 】聊聊 Schedule Domain 的构建]]></title>
         <id>https://zackaryliu.github.io/post/sched-liao-liao-schedule-domain-de-gou-jian/</id>
