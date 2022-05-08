@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://zackaryliu.github.io</id>
     <title>Deep Kernel</title>
-    <updated>2022-05-01T15:31:13.603Z</updated>
+    <updated>2022-05-08T15:33:27.085Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://zackaryliu.github.io"/>
     <link rel="self" href="https://zackaryliu.github.io/atom.xml"/>
@@ -10,6 +10,22 @@
     <logo>https://zackaryliu.github.io/images/avatar.png</logo>
     <icon>https://zackaryliu.github.io/favicon.ico</icon>
     <rights>All rights reserved 2022, Deep Kernel</rights>
+    <entry>
+        <title type="html"><![CDATA[  【 MM 】聊聊 OOM 选目标的原则]]></title>
+        <id>https://zackaryliu.github.io/post/mm-liao-liao-oom-xuan-mu-biao-de-yuan-ze/</id>
+        <link href="https://zackaryliu.github.io/post/mm-liao-liao-oom-xuan-mu-biao-de-yuan-ze/">
+        </link>
+        <updated>2022-05-08T15:32:20.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[【 SCHED 】聊聊 CPU 负载均衡]]></title>
+        <id>https://zackaryliu.github.io/post/sched-liao-liao-cpu-fu-zai-jun-heng/</id>
+        <link href="https://zackaryliu.github.io/post/sched-liao-liao-cpu-fu-zai-jun-heng/">
+        </link>
+        <updated>2022-05-08T15:31:48.000Z</updated>
+        <content type="html"><![CDATA[<p>我们这里提到的负载均衡是CPU各核心上任务的均衡，也就是只会在SMP的场景中才会启用，之所以引入这个机制，是因为在裸核的情况下，各核是不会沟通自己或对方是否busy或overload的，负载均衡机制就像一个调度指挥中心，避免了“一核有难，七核围观”的壮景。</p>
+]]></content>
+    </entry>
     <entry>
         <title type="html"><![CDATA[【 SCHED 】聊聊 ARM64 PSCI 核启动方式]]></title>
         <id>https://zackaryliu.github.io/post/sched-liao-liao-arm64-psci-he-qi-dong-fang-shi/</id>

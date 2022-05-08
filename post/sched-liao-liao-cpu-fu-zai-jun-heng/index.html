@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" >
 
-<title>关于 | Deep Kernel</title>
+<title>【 SCHED 】聊聊 CPU 负载均衡 | Deep Kernel</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
@@ -18,11 +18,7 @@
 
 
 
-    <meta name="description" content="
-有问题欢迎一起探讨
-
-本站用于记录Kerenl优化及稳定性相关内容
-" />
+    <meta name="description" content="我们这里提到的负载均衡是CPU各核心上任务的均衡，也就是只会在SMP的场景中才会启用，之所以引入这个机制，是因为在裸核的情况下，各核是不会沟通自己或对方是否busy或overload的，负载均衡机制就像一个调度指挥中心，避免了“一核有难，七..." />
     <meta name="keywords" content="" />
   </head>
   <body>
@@ -94,17 +90,23 @@
       <div class="main-container">
         <div class="content-container" data-aos="fade-up">
           <div class="post-detail">
-            <h2 class="post-title">关于</h2>
-            <div class="post-date">2019-01-25</div>
+            <h2 class="post-title">【 SCHED 】聊聊 CPU 负载均衡</h2>
+            <div class="post-date">2022-05-08</div>
             
             <div class="post-content" v-pre>
-              <blockquote>
-<p>有问题欢迎一起探讨</p>
-</blockquote>
-<p>本站用于记录Kerenl优化及稳定性相关内容</p>
+              <p>我们这里提到的负载均衡是CPU各核心上任务的均衡，也就是只会在SMP的场景中才会启用，之所以引入这个机制，是因为在裸核的情况下，各核是不会沟通自己或对方是否busy或overload的，负载均衡机制就像一个调度指挥中心，避免了“一核有难，七核围观”的壮景。</p>
 
             </div>
             
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/sched-liao-liao-arm64-psci-he-qi-dong-fang-shi/">
+                  <h3 class="post-title">
+                    【 SCHED 】聊聊 ARM64 PSCI 核启动方式
+                  </h3>
+                </a>
+              </div>
             
 
             
