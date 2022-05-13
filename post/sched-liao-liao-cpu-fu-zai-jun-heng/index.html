@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
 <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
-<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1652023991786">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1652454801540">
 <link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
 
 
@@ -19,7 +19,7 @@
 
 
     <meta name="description" content="我们这里提到的负载均衡是CPU各核心上任务的均衡，也就是只会在SMP的场景中才会启用，之所以引入这个机制，是因为在裸核的情况下，各核是不会沟通自己或对方是否busy或overload的，负载均衡机制就像一个调度指挥中心，避免了“一核有难，七..." />
-    <meta name="keywords" content="" />
+    <meta name="keywords" content="schedule" />
   </head>
   <body>
     <div id="app" class="main">
@@ -28,7 +28,7 @@
   <div class="top-container" data-aos="fade-right">
     <div class="top-header-container">
       <a class="site-title-container" href="https://zackaryliu.github.io">
-        <img src="https://zackaryliu.github.io/images/avatar.png?v=1652023991786" class="site-logo">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1652454801540" class="site-logo">
         <h1 class="site-title">Deep Kernel</h1>
       </a>
       <div class="menu-btn" @click="menuVisible = !menuVisible">
@@ -91,19 +91,27 @@
         <div class="content-container" data-aos="fade-up">
           <div class="post-detail">
             <h2 class="post-title">【 SCHED 】聊聊 CPU 负载均衡</h2>
-            <div class="post-date">2022-05-08</div>
+            <div class="post-date">2022-02-04</div>
             
             <div class="post-content" v-pre>
               <p>我们这里提到的负载均衡是CPU各核心上任务的均衡，也就是只会在SMP的场景中才会启用，之所以引入这个机制，是因为在裸核的情况下，各核是不会沟通自己或对方是否busy或overload的，负载均衡机制就像一个调度指挥中心，避免了“一核有难，七核围观”的壮景。</p>
 
             </div>
             
+              <div class="tag-container">
+                
+                  <a href="https://zackaryliu.github.io/tag/dLNnTt3KzY/" class="tag">
+                    schedule
+                  </a>
+                
+              </div>
+            
             
               <div class="next-post">
                 <div class="next">下一篇</div>
-                <a href="https://zackaryliu.github.io/post/sched-liao-liao-arm64-psci-he-qi-dong-fang-shi/">
+                <a href="https://zackaryliu.github.io/post/sched-liao-liao-schedule-domain-de-gou-jian/">
                   <h3 class="post-title">
-                    【 SCHED 】聊聊 ARM64 PSCI 核启动方式
+                    【 SCHED 】聊聊 Schedule Domain 的构建
                   </h3>
                 </a>
               </div>
