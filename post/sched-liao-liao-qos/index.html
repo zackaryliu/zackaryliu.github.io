@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" >
 
-<title>标签列表 | Deep Kernel</title>
+<title>【 SCHED 】聊聊 QOS | Deep Kernel</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
@@ -18,7 +18,9 @@
 
 
 
-    <meta name="description" content="温故而知新">
+    <meta name="description" content="关于 QOS（Quality Of Service）官方是这样定义的，
+This interface provides a kernel and user mode interface for registering performance..." />
+    <meta name="keywords" content="" />
   </head>
   <body>
     <div id="app" class="main">
@@ -88,14 +90,37 @@
 
       <div class="main-container">
         <div class="content-container" data-aos="fade-up">
-          <h2 class="tag-list-title">标签列表</h2>
-          <div class="tags-container">
+          <div class="post-detail">
+            <h2 class="post-title">【 SCHED 】聊聊 QOS</h2>
+            <div class="post-date">2022-02-08</div>
             
-              <a class="tag" href="https://zackaryliu.github.io/tag/_7RdgFdAr/">memory</a>
+            <div class="post-content" v-pre>
+              <p>关于 QOS（Quality Of Service）官方是这样定义的，<br>
+This interface provides a kernel and user mode interface for registering performance expectations by drivers, subsystems and user space applications on one of the parameters.<br>
+可以将它理解为一套接口，可以通过它来申请或限制一些“指标”。</p>
+<p>在当前版本的内核中，QOS 被应用到了两个方面，<br>
+● CPU latency QoS.<br>
+● The per-device PM QoS framework provides the API to manage the per-device latency constraints and PM QoS flags.<br>
+一方面应用在 CPU latency 机制上，另一方面还在 PM 相关功能上得以体现。<br>
+那么本文的重点就是介绍下 QOS 在这两种情况下的应用案例。</p>
+
+            </div>
             
-              <a class="tag" href="https://zackaryliu.github.io/tag/dLNnTt3KzY/">schedule</a>
             
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/sched-liao-liao-schedutil-governorr/">
+                  <h3 class="post-title">
+                    【 SCHED 】聊聊 SCHEDUTIL GOVERNOR
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
           </div>
+
         </div>
       </div>
     </div>

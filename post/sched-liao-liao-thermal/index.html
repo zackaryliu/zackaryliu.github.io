@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" >
 
-<title>标签列表 | Deep Kernel</title>
+<title>【 SCHED 】聊聊 Thermal | Deep Kernel</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
@@ -18,7 +18,11 @@
 
 
 
-    <meta name="description" content="温故而知新">
+    <meta name="description" content="系统中的 Thermal 机制，可理解为“温控”，通过该机制，我们可以自定义一套,
+整个 thermal 子系统，主要由以下四大组件构成，
+
+温度由 sensor 负责采集，governor 充当“大脑”，一旦温度有超标情况，就会采取对应的..." />
+    <meta name="keywords" content="" />
   </head>
   <body>
     <div id="app" class="main">
@@ -88,14 +92,34 @@
 
       <div class="main-container">
         <div class="content-container" data-aos="fade-up">
-          <h2 class="tag-list-title">标签列表</h2>
-          <div class="tags-container">
+          <div class="post-detail">
+            <h2 class="post-title">【 SCHED 】聊聊 Thermal</h2>
+            <div class="post-date">2022-02-09</div>
             
-              <a class="tag" href="https://zackaryliu.github.io/tag/_7RdgFdAr/">memory</a>
+            <div class="post-content" v-pre>
+              <p>系统中的 Thermal 机制，可理解为“温控”，通过该机制，我们可以自定义一套,<br>
+整个 thermal 子系统，主要由以下四大组件构成，<br>
+<img src="https://zackaryliu.github.io/post-images/1655822130915.png" alt="" loading="lazy"><br>
+温度由 sensor 负责采集，governor 充当“大脑”，一旦温度有超标情况，就会采取对应的策略通过控制 cooling device 以达到降温的效果。<br>
+这篇文章主要是依次来介绍上图的几个部分，我们按系统启动后加载的顺序来逐个分析。</p>
+
+            </div>
             
-              <a class="tag" href="https://zackaryliu.github.io/tag/dLNnTt3KzY/">schedule</a>
             
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/sched-liao-liao-qos/">
+                  <h3 class="post-title">
+                    【 SCHED 】聊聊 QOS
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
           </div>
+
         </div>
       </div>
     </div>

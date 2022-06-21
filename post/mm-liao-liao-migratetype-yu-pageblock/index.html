@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" >
 
-<title>标签列表 | Deep Kernel</title>
+<title>【 MM 】聊聊 migratetype 与 pageblock | Deep Kernel</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
@@ -18,7 +18,10 @@
 
 
 
-    <meta name="description" content="温故而知新">
+    <meta name="description" content="为了抵抗内存碎片问题，各位内核提交者们煞费苦心做出了种种对策，而我们这篇所述的 migratetype 就作为其中一种。
+本篇我们就着重介绍下这一点，其它的一些抗碎片的手段我们后续再总结。
+当前版本的内核中有以下几种 migratetype..." />
+    <meta name="keywords" content="" />
   </head>
   <body>
     <div id="app" class="main">
@@ -88,14 +91,32 @@
 
       <div class="main-container">
         <div class="content-container" data-aos="fade-up">
-          <h2 class="tag-list-title">标签列表</h2>
-          <div class="tags-container">
+          <div class="post-detail">
+            <h2 class="post-title">【 MM 】聊聊 migratetype 与 pageblock</h2>
+            <div class="post-date">2022-03-03</div>
             
-              <a class="tag" href="https://zackaryliu.github.io/tag/_7RdgFdAr/">memory</a>
+            <div class="post-content" v-pre>
+              <p>为了抵抗内存碎片问题，各位内核提交者们煞费苦心做出了种种对策，而我们这篇所述的 migratetype 就作为其中一种。<br>
+本篇我们就着重介绍下这一点，其它的一些抗碎片的手段我们后续再总结。<br>
+当前版本的内核中有以下几种 migratetype 类型，</p>
+
+            </div>
             
-              <a class="tag" href="https://zackaryliu.github.io/tag/dLNnTt3KzY/">schedule</a>
             
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/mm-liao-liao-oom-xuan-mu-biao-de-yuan-ze/">
+                  <h3 class="post-title">
+                    【 MM 】聊聊 OOM 选目标原则
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
           </div>
+
         </div>
       </div>
     </div>
