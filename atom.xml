@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://zackaryliu.github.io</id>
     <title>Deep Kernel</title>
-    <updated>2022-06-21T16:17:23.437Z</updated>
+    <updated>2022-06-21T16:28:33.476Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://zackaryliu.github.io"/>
     <link rel="self" href="https://zackaryliu.github.io/atom.xml"/>
@@ -10,6 +10,20 @@
     <logo>https://zackaryliu.github.io/images/avatar.png</logo>
     <icon>https://zackaryliu.github.io/favicon.ico</icon>
     <rights>All rights reserved 2022, Deep Kernel</rights>
+    <entry>
+        <title type="html"><![CDATA[【 PERF 】PLY 环境搭建]]></title>
+        <id>https://zackaryliu.github.io/post/perf-ply-huan-jing-da-jian/</id>
+        <link href="https://zackaryliu.github.io/post/perf-ply-huan-jing-da-jian/">
+        </link>
+        <updated>2022-04-01T16:27:36.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[【 PERF 】systemtap 环境搭建与错误排查]]></title>
+        <id>https://zackaryliu.github.io/post/systemtap-huan-jing-da-jian-yu-cuo-wu-pai-cha/</id>
+        <link href="https://zackaryliu.github.io/post/systemtap-huan-jing-da-jian-yu-cuo-wu-pai-cha/">
+        </link>
+        <updated>2022-03-31T16:22:41.000Z</updated>
+    </entry>
     <entry>
         <title type="html"><![CDATA[【 MM 】聊聊 Compaction 与 Page migrate]]></title>
         <id>https://zackaryliu.github.io/post/mm-liao-liao-compaction-yu-page-migrate/</id>
@@ -65,19 +79,5 @@
         <link href="https://zackaryliu.github.io/post/sched-liao-liao-cpufreq/">
         </link>
         <updated>2022-02-06T14:31:39.000Z</updated>
-    </entry>
-    <entry>
-        <title type="html"><![CDATA[【 SCHED 】聊聊 PELT 负载计算]]></title>
-        <id>https://zackaryliu.github.io/post/sched-liao-liao-pelt-fu-zai-ji-suan/</id>
-        <link href="https://zackaryliu.github.io/post/sched-liao-liao-pelt-fu-zai-ji-suan/">
-        </link>
-        <updated>2022-02-05T14:30:50.000Z</updated>
-    </entry>
-    <entry>
-        <title type="html"><![CDATA[【 SCHED 】聊聊 CPU 负载均衡]]></title>
-        <id>https://zackaryliu.github.io/post/sched-liao-liao-cpu-fu-zai-jun-heng/</id>
-        <link href="https://zackaryliu.github.io/post/sched-liao-liao-cpu-fu-zai-jun-heng/">
-        </link>
-        <updated>2022-02-04T15:31:48.000Z</updated>
     </entry>
 </feed>
