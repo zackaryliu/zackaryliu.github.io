@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://zackaryliu.github.io</id>
+    <title>Deep Kernel</title>
+    <updated>2024-12-08T03:40:01.870Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://zackaryliu.github.io"/>
+    <link rel="self" href="https://zackaryliu.github.io/atom.xml"/>
+    <subtitle>温故而知新</subtitle>
+    <logo>https://zackaryliu.github.io/images/avatar.png</logo>
+    <icon>https://zackaryliu.github.io/favicon.ico</icon>
+    <rights>All rights reserved 2024, Deep Kernel</rights>
+    <entry>
+        <title type="html"><![CDATA[Intel Discrete GPU - Memory - Migrate]]></title>
+        <id>https://zackaryliu.github.io/post/intel-discrete-gpu-memory-migrate/</id>
+        <link href="https://zackaryliu.github.io/post/intel-discrete-gpu-memory-migrate/">
+        </link>
+        <updated>2024-12-05T01:14:11.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Intel Discrete GPU - Memory - Map / Page Fault]]></title>
+        <id>https://zackaryliu.github.io/post/intel-discrete-gpu-memory-map-page-fault/</id>
+        <link href="https://zackaryliu.github.io/post/intel-discrete-gpu-memory-map-page-fault/">
+        </link>
+        <updated>2024-12-01T14:59:24.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Intel Discrete GPU - Memory - Alloc]]></title>
+        <id>https://zackaryliu.github.io/post/intel-discrete-gpu-memory-alloc/</id>
+        <link href="https://zackaryliu.github.io/post/intel-discrete-gpu-memory-alloc/">
+        </link>
+        <updated>2024-11-24T15:32:43.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Intel Discrete GPU - 开篇]]></title>
+        <id>https://zackaryliu.github.io/post/intel-discrete-gpu-kai-pian/</id>
+        <link href="https://zackaryliu.github.io/post/intel-discrete-gpu-kai-pian/">
+        </link>
+        <updated>2024-11-20T15:38:10.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Learning NutShell - Inorder - Software Architecture]]></title>
+        <id>https://zackaryliu.github.io/post/learning-nutshell-inorder-software-architecture/</id>
+        <link href="https://zackaryliu.github.io/post/learning-nutshell-inorder-software-architecture/">
+        </link>
+        <updated>2024-02-07T15:58:20.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Learning RISC-V - Introducing XiangShan and NutShell]]></title>
+        <id>https://zackaryliu.github.io/post/steps-to-boot-riscv-on-xiangshan/</id>
+        <link href="https://zackaryliu.github.io/post/steps-to-boot-riscv-on-xiangshan/">
+        </link>
+        <updated>2023-12-17T14:10:31.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[【 PERF 】PLY 环境搭建]]></title>
+        <id>https://zackaryliu.github.io/post/perf-ply-huan-jing-da-jian/</id>
+        <link href="https://zackaryliu.github.io/post/perf-ply-huan-jing-da-jian/">
+        </link>
+        <updated>2022-04-01T16:27:36.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[【 PERF 】systemtap 环境搭建与错误排查]]></title>
+        <id>https://zackaryliu.github.io/post/systemtap-huan-jing-da-jian-yu-cuo-wu-pai-cha/</id>
+        <link href="https://zackaryliu.github.io/post/systemtap-huan-jing-da-jian-yu-cuo-wu-pai-cha/">
+        </link>
+        <updated>2022-03-31T16:22:41.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[【 MM 】聊聊 Compaction 与 Page migrate]]></title>
+        <id>https://zackaryliu.github.io/post/mm-liao-liao-compaction-yu-page-migrate/</id>
+        <link href="https://zackaryliu.github.io/post/mm-liao-liao-compaction-yu-page-migrate/">
+        </link>
+        <updated>2022-03-04T14:36:43.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[【 MM 】聊聊 migratetype 与 pageblock]]></title>
+        <id>https://zackaryliu.github.io/post/mm-liao-liao-migratetype-yu-pageblock/</id>
+        <link href="https://zackaryliu.github.io/post/mm-liao-liao-migratetype-yu-pageblock/">
+        </link>
+        <updated>2022-03-03T14:36:16.000Z</updated>
+    </entry>
+</feed>
