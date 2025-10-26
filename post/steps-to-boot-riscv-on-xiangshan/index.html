@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>Learning RISC-V - Introducing XiangShan and NutShell | Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="背景介绍
+如果想深入了解操作系统是怎么运行、实现的，可以学习 Linux Kernel，它能够让我们知道任务是怎样调度，内存是怎么管理等等；
+如果想深入了解 SOC 是怎么运转、通信的，各模块 IP 之间是如何连接的，这要看各个 IP 的 ..." />
+    <meta name="keywords" content="riscv" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">Learning RISC-V - Introducing XiangShan and NutShell</h2>
+            <div class="post-date">2023-12-17</div>
+            
+            <div class="post-content" v-pre>
+              <h1 id="背景介绍">背景介绍</h1>
+<p>如果想深入了解操作系统是怎么运行、实现的，可以学习 Linux Kernel，它能够让我们知道任务是怎样调度，内存是怎么管理等等；<br>
+如果想深入了解 SOC 是怎么运转、通信的，各模块 IP 之间是如何连接的，这要看各个 IP 的 Spec 手册，像 ARM 的手册对系统的组织或原理介绍的较为详细；<br>
+如果阅读 Spec 仍觉得有些细节不够深入，对微架构实现不清晰、指令流水转运转不明朗，那就直接深入到最低层，看 RTL 实现！</p>
+<p>开源的 RTL，目前 RISC-V 是一个较好的学习对象，好在国内也已经搭建起多个开源处理器项目，其中 NutShell 和 XiangShan 就是出色且值得学习的实现；</p>
+<p>我们由外至内，先了解如何仿真、运行 RTL，再逐层的去剖析其内部各模块真正的实现；<br>
+先来看 XiangShan 项目，</p>
+<h1 id="xiangshan">XiangShan</h1>
+<p>香山处理器 Verilog 的仿真运行，要依赖几个其它模块，<br>
+像 Difftest 用来做指令的差分验证架构，NEMU 做为差分验证的模拟器执行端，<br>
+Mill 编译为硬件代码，还有 Verilator 实现硬件代码的仿真等，<br>
+我们单个去下载、编译这些项目的话较复杂，<br>
+还好香山为我们提供好了环境的简单适配，不得不说这个项目真的很贴心！</p>
+<h2 id="构建-xiangshan">构建 XiangShan</h2>
+<p>我们直接克隆环境适配工程（详细说明见官方文档），</p>
+<pre><code>git clone https://github.com/OpenXiangShan/xs-env
+</code></pre>
+<p>依赖模块的搭建，</p>
+<pre><code>/* 安装系统依赖模块，编译安装指定版本的 Verilator */
+sudo -s ./setup-tools.sh
+
+/* 更新 gitsubmodule，配置环境变量，编译 NEMU 等 */
+source setup.sh
+</code></pre>
+<h3 id="生成可综合的单核代码">生成可综合的单核代码</h3>
+<p>在 /xs-env/XiangShan 下运行 make verilog ，该命令将会编译香山的 Chisel 代码，生成 Verilog，输出的文件在 XiangShan/build/XSTop.v</p>
+<blockquote>
+<p>提示： make verilog命令生成的Verilog文件用于生成FPGA的bitstream和流片，去除了Difftest等仿真用的调试模块。 如果需要生成带有Difftest的用于仿真的Verilog文件，可以使用make sim-verilog命令。</p>
+</blockquote>
+<h3 id="仿真模拟运行">仿真模拟运行</h3>
+<p>我们使用 Verilator 生成香山核的仿真程序，进入 XiangShan 目录，运行命令</p>
+<pre><code>make emu CONFIG=MinimalConfig EMU_TRACE=1 -j32
+</code></pre>
+<p>将会生成一个最小配置的香山的仿真程序，生成结束后，可以在 ./build/ 目录下看到一个名为 emu 的仿真程序。其中，CONFIG=MinimalConfig 指定了香山核使用的配置，EMU_TRACE=1 会为仿真程序添加波形输出功能，允许在仿真过程中启用波形输出。<br>
+<em>（编译过程可能消耗较大系统内存，如 Build Fail，可通过修改 ./build.sc 下 -Xmx 参数以降低内存消耗程度）</em></p>
+<p>在 /xs-env/NEMU下运行，</p>
+<pre><code>make clean
+make riscv64-xs-ref_defconfig
+make -j
+</code></pre>
+<p>这个命令会将 NEMU 模拟器编译成动态链接库，将会在 build 目录下生成文件 riscv64-nemu-interpreter-so，从而接入到香山仿真差分测试中。</p>
+<p>利用前面生成好的香山仿真程序，NEMU 动态链接库与 workload，可以默认在差分测试框架打开的情况下让香山核运行指定的应用程序，</p>
+<pre><code>./build/emu -i $NOOP_HOME/ready-to-run/linux.bin
+</code></pre>
+<p>如果有看到 Kernel Log 输出，则说明已经模拟运行成功；</p>
+<h1 id="nutshell">NutShell</h1>
+<p>NutShell 是 OSCPU (Open Source Chip Project by University) 团队开源的 RISC-V 处理器项目，<br>
+其复杂程度要远小于香山，拿它来作为入门是个不错的选择，</p>
+<h2 id="编译和运行">编译和运行</h2>
+<p>需要注意的是，NEMU 要选择适合 NutShell 的配置，<br>
+配置文件使用</p>
+<pre><code>make riscv64-nutshell-ref_defconfig
+</code></pre>
+<p>随后即可以如下方式编译、启动 NutShell，</p>
+<pre><code>source ./env.sh
+
+make clean
+make emu EMU_CXX_EXTRA_FLAGS=&quot;-DFIRST_INST_ADDRESS=0x80000000&quot;
+./build/emu -b 0 -e 0 -i ./ready-to-run/linux.bin -C 75000000 --diff ../NEMU/build/riscv64-nemu-interpreter-so
+</code></pre>
+<p>同样有看到 Kernel Log 输出的话，则说明已经模拟运行成功；</p>
+<h1 id="展望">展望</h1>
+<p>我们前面提到过，相对于 XiangShan 而 NutShell 更适合初学者学习，其架构实现及 Chisel 的编写均要比 XiangShan 容易理解；<br>
+那么后面的篇章，会先以 NutShell 展开，而且还是围绕 Inorder 的实现展开，学会了 Inorder 再去看 OOO（Out Of Order），最后再去征服 XiangShan 也不迟，一步一脚印；</p>
+
+            </div>
+            
+              <div class="tag-container">
+                
+                  <a href="https://zackaryliu.github.io/tag/SmS1cuJIR/" class="tag">
+                    riscv
+                  </a>
+                
+              </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/perf-ply-huan-jing-da-jian/">
+                  <h3 class="post-title">
+                    【 PERF 】PLY 环境搭建
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

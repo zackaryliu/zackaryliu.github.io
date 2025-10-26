@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>Intel Discrete GPU - Memory - Migrate | Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="说到 Migrate，我们可能最开始想到 Kernel 中内存子系统中 MM Compact 时所涉及到的迁移，Compact 的迁移是为了能够得到更多连续的空闲物理页，迁移时没有指定的源/目的地址。而这里提到的 Migrate 更像是一个..." />
+    <meta name="keywords" content="intel gpu" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">Intel Discrete GPU - Memory - Migrate</h2>
+            <div class="post-date">2024-12-05</div>
+            
+            <div class="post-content" v-pre>
+              <p>说到 Migrate，我们可能最开始想到 Kernel 中内存子系统中 MM Compact 时所涉及到的迁移，Compact 的迁移是为了能够得到更多连续的空闲物理页，迁移时没有指定的源/目的地址。而这里提到的 Migrate 更像是一个 DMA 操作，有地址目标、大小等，而且不仅仅发生在系统内存中。</p>
+<p>Xe 驱动中的 Migrate 通过 Intel GPU 硬件中模块实现，它一般被称之为<code>Copy Engine</code>或<code>Blit Engine(Block Image Transfer)</code>，它能够完成的内存迁移操作可以在系统内存内部、系统内存与独立显存之间、独立显存内部；</p>
+<p>Xe Migrate 的全局初始化通过<code>xe_migrate_init</code>完成，当一个 APP 的显存涉及到迁移时，Migrate 将介入其中，每个 APP 在 GPU 侧均有对应的 VM 来管理地址空间，Migrate 迁移显存时将会切换至其对应的指令 Queue 和地址空间 VM，而这些前置准备工作均由 init 来完成，</p>
+<p>其中的核心流程即大致如下，</p>
+<pre><code class="language-c++">struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
+{
+    ...
+    vm = xe_vm_create(xe, XE_VM_FLAG_MIGRATION |
+              XE_VM_FLAG_SET_TILE_ID(tile));
+    ...
+    xe_migrate_prepare_vm(tile, m, vm);
+    ...
+    xe_exec_queue_create_class(xe, primary_gt, vm,
+                          XE_ENGINE_CLASS_COPY,
+                          EXEC_QUEUE_FLAG_KERNEL |
+                          EXEC_QUEUE_FLAG_PERMANENT, 0);
+    ...
+}
+</code></pre>
+<p>其中最为关键的操作是通过<code>xe_migrate_prepare_vm</code>搭建上述 VM 所需要的页表结构，</p>
+<p>Migrate 的范围包含系统内存和独立显存，所以这个页表结构会稍微复杂些，对应的 PTE 要指向这些显存位置；</p>
+<p><code>xe_migrate_prepare_vm</code>的整体实现过程比较晦涩，乍一开始看它的实现时说实施是抵触的，里面涉及个多个 PDE/PTE Entry 的构建与对应 Offset 的写入，阅读这块代码时，建议一边看一边将页表的结构记录下来，便于理解；</p>
+<p>我来简单概述下这里相关的几个要点，</p>
+<ul>
+<li>
+<p>在每个 VM 地址空间的创建之初，会默认分配一个 Root 页表作为 PGD，它在代码中叫做 pt_root，当然 Migrate VM 也不例外；</p>
+</li>
+<li>
+<p>Migrate 采用<code>NUM_PT_SLOTS</code>(默认 32) 个页表作为其操作显存迁移时的页表结构，其中有普通的显存拷贝映射时使用的用途，也有作为基础页表使用时的用途；以 DG1 GPU 为例的话，页表映射最大支持三级，还有<code>VRAM_IDENTITY_MAP_COUNT</code>(默认 2) 个页表用来作为独立显存的 IDENTITY 映射，那么将有五个页表作为基础页表的使用，它们是页面 27-31；</p>
+</li>
+<li>
+<p>IDENTITY 页表由 30、31 组成，页面 31 用来做<code>compressed pat</code>场景使用，所以一般情况只下用到 30 一个页面，通过<code>xe_migrate_program_identity</code>完成映射，注意这里的是以 1G PTE 的粒度来映射大部分独立显存，最高 1G 地址空间的独立显存由于某些使用场景的特殊性，是采用 2M PTE 粒度来映射的。另外 IDENTITY 的映射 Offset 为 256；</p>
+</li>
+</ul>
+<p>基于以上构建过程，现在 Migrate 所需的页表结构已建立完成，大致如下所示，</p>
+<figure data-type="image" tabindex="1"><img src="https://zackaryliu.github.io/post-images/intel_gpu/migrate/global_pagetable.png" alt="" loading="lazy"></figure>
+<h3 id="使用场景">使用场景</h3>
+<p>实际上 Migrate 不仅仅用于普通显存的迁移使用，在 Xe 驱动的实现中，有些 GPU 页表异步更新动作也通过它来完成，下面我们分别来介绍下这两种使用场景。</p>
+<h4 id="显存迁移">显存迁移</h4>
+<p>显存迁移的核心在<code>xe_migrate_copy</code>中实现，上面我们提到过，显存迁移时的源或目的空间皆可以是系统内存或独立显存，我们需要知道的是，如何用刚刚搭建好的页表结构来完成显存迁移。</p>
+<p>我们以一块显存从独立显存 Migrate 到系统内存的场景为例来看一下需要经过哪些流程，</p>
+<ul>
+<li>
+<p>确认每次迁移的大小，在独立显存中通常为默认<code>MAX_PREEMPTDISABLE_TRANSFER</code>(8M) 大小，再根据每个最后一级页表的映射空间<code>LEVEL0_PAGE_TABLE_ENCODE_SIZE</code>(2M) ，确定到单次所需要使用到的页面数<code>avail_pts</code>；</p>
+</li>
+<li>
+<p>源/目的地址分别通过<code>pte_update_size</code>来计算好源/目的地址的虚拟地址 VA，虚拟地址的设定将涉及两种情况，</p>
+<ul>
+<li>
+<p>地址空间为系统内存，通过<code>xe_migrate_vm_addr</code>计算出 VA，</p>
+<pre><code class="language-c++">static u64 xe_migrate_vm_addr(u64 slot, u32 level)
+{
+    /* First slot is reserved for mapping of PT bo and bb, start from 1 */
+    return (slot + 1ULL) &lt;&lt; xe_pt_shift(level + 1);
+}
+</code></pre>
+<ul>
+<li>这里 slot 通过<code>pt_ofs</code>参数指定，计算方式值得思考一下，其实是 Migrate 页表结构的一个运用，slot + 1 再外加 shift 意味着 28 号页面的第 1 个 entry 开始设定 VA</li>
+</ul>
+</li>
+<li>
+<p>地址空间为独立显存，通过<code>xe_migrate_vram_ofs</code>计算出 VA</p>
+<pre><code class="language-c++">static u64 xe_migrate_vram_ofs(struct xe_device *xe, u64 addr, bool is_comp_pte)
+{
+    u64 identity_offset = IDENTITY_OFFSET;
+    ...
+    addr -= xe-&gt;mem.vram.dpa_base;
+    return addr + (identity_offset &lt;&lt; xe_pt_shift(2));
+}
+</code></pre>
+<ul>
+<li>这里比系统内存的 VA 更容易理解，拿到<code>IDENTITY_OFFSET</code>(256) 外加 shift 后，即为独立显存的 IDENTITY 映射空间，VA 与独立显存 PA 一致</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p>通过<code>xe_bb_new</code>创建迁移指令队列；</p>
+</li>
+<li>
+<p>通过<code>emit_pte</code>做迁移地址在页表结构中的 PTE 填充，填充动作是通过 GPU 的<code>MI_STORE_DATA_IMM</code>指令实现，物理地址为独立显存 PA 或经过 IOMMU 映射过系统内存后取得的 IPA；</p>
+</li>
+<li>
+<p>向 GPU 的迁移命令队列中通过<code>emit_copy</code>插入最终的迁移指令，对应的指令为<code>XY_FAST_COPY_BLT_CMD</code>，源/目的地址和迁移大小均在指令后追加；</p>
+</li>
+</ul>
+<h4 id="页表更新">页表更新</h4>
+<p>页表更新动作体现在<code>xe_migrate_update_pgtables</code>中，其中包含借助 CPU 更新和借助 GPU 更新，CPU 更新时可以立即将页表写入内存，但前提是页表更新时 GPU 没有访问对应 APP 地址空间的依赖，否则将通过 GPU 来更新。</p>
+<p>Migrate 的使用场景对应于 GPU 更新页表，主要实现函数为<code>__xe_migrate_update_pgtables</code>，页表所需更新的内容已在显存 MAP 时存储至<code>pt_update_ops</code>结构中（可以看下 MAP 篇文章回忆下），<code>pt_update_ops</code>包含多个<code>pt_op</code>，其中<code>num_entries</code>成员代表我们需要更新的页表数，<code>pt_bo</code>成员代表需要更新的页表目标；</p>
+<p>随后需要再根据我们的 GPU 硬件是否为独立显卡决定页表的写入空间，分别看下两种情况，</p>
+<ul>
+<li>集成显卡的情况</li>
+</ul>
+<p>首先需要通过最开始搭建好的 Migrate 全局页表结构衔接上需要更新的页表页面<code>pt_bo</code>，所需使用的页表结构从<code>NUM_KERNEL_PDE</code>这个偏移开始；</p>
+<ul>
+<li>独立显卡的情况</li>
+</ul>
+<p>独立显卡的显存空间因为是 IDENTITY 映射，所以<code>pt_bo</code>映射搭建这一块可以无需考虑</p>
+<p>映射好目标<code>pt_bo</code>，最后一步就是将页表项写入至<code>pt_bo</code>，无论是集成显卡或独立显存，均通过<code>write_pgtable</code>来完成目标项的写入，其实这里与显存迁移时的使用方法极其类似，由于独立显存的 IDENTITY 映射存在偏移，所以针对独立显卡的情况先借助<code>xe_migrate_vram_ofs</code>取得偏移。最后通过 GPU 的<code>MI_STORE_DATA_IMM</code>指令完成页表项的写入。</p>
+
+            </div>
+            
+              <div class="tag-container">
+                
+                  <a href="https://zackaryliu.github.io/tag/f3ZAkt3X-c/" class="tag">
+                    intel gpu
+                  </a>
+                
+              </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/intel-discrete-gpu-memory-map-page-fault/">
+                  <h3 class="post-title">
+                    Intel Discrete GPU - Memory - Map / Page Fault
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>【 PERF 】PLY 环境搭建 | Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="0＃ 关于ply
+
+A light-weight dynamic tracer for Linux that leverages the kernel's BPF VM in concert with kprobes and tracepo..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">【 PERF 】PLY 环境搭建</h2>
+            <div class="post-date">2022-04-02</div>
+            
+            <div class="post-content" v-pre>
+              <h3 id="0-关于ply">0＃ 关于ply</h3>
+<blockquote>
+<p>A light-weight dynamic tracer for Linux that leverages the kernel's BPF VM in concert with kprobes and tracepoints to attach probes to arbitrary points in the kernel. Most tracers that generate BPF bytecode are based on the LLVM based BCC toolchain. ply on the other hand has no required external dependencies except for libc. In addition to x86_64, ply also runs on aarch64, arm, and powerpc.</p>
+</blockquote>
+<p>简单的说，就是ply是一个轻量级的bpf前端工具，可以用来代替bpftrace、bcc来在嵌入式设备上使用。</p>
+<h3 id="1-源码下载">1＃ 源码下载</h3>
+<pre><code class="language-c">git clone https://github.com/iovisor/ply.git
+</code></pre>
+<h3 id="2-源码编译">2＃ 源码编译</h3>
+<p><code>ply</code>需要信赖一些三方的库和工具，所以在编译前我们需要系统环境中具备这些依赖，在<code>ubuntu</code>的环境中可以按照下面命令补充</p>
+<pre><code class="language-c">sudo apt-get install make automake m4 libtool
+sudo apt-get install bison flex
+</code></pre>
+<p>好的，编译环境目前补充完毕，可以按照官方提供的编译步骤进行编译，</p>
+<pre><code class="language-c">./autogen.sh   # to generate the configure script
+./configure
+make
+make install   # you probably need to be root for this
+</code></pre>
+<p>根据这个步骤，链接出来的成果物是动态的，笔者一般在编译一些嵌入式工具时更偏向于静态链接，这样方便平时调试，不用担心依赖库的缺失，那这时再给出一个静态链接的编译步骤</p>
+<pre><code class="language-c">1) ./autogen.sh
+2) ./configure --enable-static LDFLAGS=--static
+3) 修改src/libply/libply.la，在library_names属性中最后添加libply.a
+4) make
+5) ln -s /home/zackary/github/ply/src/ply/.libs/ply /usr/bin/ply
+</code></pre>
+<p>由于是静态链接，最后只要创建个软链接后，在系统中就可以随便调用了，所以就无需执行<code>make install</code>，后来如果想拿到其它设备上用，直接拷贝过去就能用。<br>
+然后可以执行一下<code>ply</code>命令来验证安装是否正确</p>
+<pre><code class="language-c">＃ ply -v
+ply 2.2.0-1-g54d3bbf (linux-version:330518~5.11.22)
+</code></pre>
+<p>好，那到这里一切<code>OK</code></p>
+<h3 id="3-环境测试">3# 环境测试</h3>
+<p><code>ply</code>源码中自带了环境测试脚本，我们可以利用它来测试当前的系统环境是否开启了<code>ply</code>信赖的功能项，比如<code>kprobe</code>、<code>tracepoint</code>等，我们一起来运行一下吧，</p>
+<pre><code class="language-c">Ensuring that debugfs is mounted... OK
+Verifying kprobe... OK
+Verifying tracepoint... OK
+Verifying special... OK
+Verifying interval... OK
+</code></pre>
+<p>好的，在笔者的系统中，这些配置项是均已经开启了的，那接下来快试试<code>ply</code>吧。</p>
+<h3 id="4-运行工具">4＃ 运行工具</h3>
+<p>这里笔者去验证了对<code>do_sys_openat2</code>这个接口捕捉的有效性，先是在后台运行<code>ply</code>，然后去<code>cat</code>一个<code>proc</code>接口。</p>
+<pre><code class="language-c"># ply 'kprobe:do_sys_openat2 { printf(&quot;%v(%v): %s\n&quot;, comm, uid, str(arg1)); }' &amp;
+# cat /proc/cmdline  
+cat            (   0): /etc/ld.so.cache
+cat            (   0): /lib/aarch64-linux-gnu/libc.so.6
+cat            (   0): /usr/lib/locale/locale-archive
+cat            (   0): /usr/share/locale/locale.alias
+cat            (   0): /usr/lib/locale/C.UTF-8/LC_IDENTIFICATION
+cat            (   0): /usr/lib/aarch64-linux-gnu/gconv/gconv-modules.cache
+cat            (   0): /usr/lib/locale/C.UTF-8/LC_MEASUREMENT
+cat            (   0): /usr/lib/locale/C.UTF-8/LC_TELEPHONE
+cat            (   0): /usr/lib/locale/C.UTF-8/LC_ADDRESS
+cat            (   0): /usr/lib/locale/C.UTF-8/LC_NAME
+cat            (   0): /usr/lib/locale/C.UTF-8/LC_PAPER
+cat            (   0): /usr/lib/locale/C.UTF-8/LC_MESSAGES
+cat            (   0): /usr/lib/locale/C.UTF-8/LC_MESSAGES/SYS_LC_MESSAGES
+cat            (   0): /usr/lib/locale/C.UTF-8/LC_MONETARY
+cat            (   0): /usr/lib/locale/C.UTF-8/LC_COLLATE
+cat            (   0): /usr/lib/locale/C.UTF-8/LC_TIME
+cat            (   0): /usr/lib/locale/C.UTF-8/LC_NUMERIC
+cat            (   0): /usr/lib/locale/C.UTF-8/LC_CTYPE
+cat            (   0): /proc/cmdline
+</code></pre>
+<p>通过最终的结果来看，<code>open</code>操作能够被有效地捕捉到，<br>
+那么至此，我们对<code>ply</code>工具的初步环境搭建就已经完成。</p>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/systemtap-huan-jing-da-jian-yu-cuo-wu-pai-cha/">
+                  <h3 class="post-title">
+                    【 PERF 】systemtap 环境搭建与错误排查
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

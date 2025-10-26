@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="温故而知新">
+    
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/beginning/">
+                  <h2 class="post-title">New blog &amp; New beginning</h2>
+                </a>
+                <div class="post-date">
+                  2022-01-01
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+                <a class="right" href="https://zackaryliu.github.io/post/beginning/">
+                  <div class="feature-container" style="background-image: url('https://zackaryliu.github.io/post-images/beginning.jpg')">
+                  </div>
+                </a>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/triton-chu-ti-yan/">
+                  <h2 class="post-title">Triton 初体验</h2>
+                </a>
+                <div class="post-date">
+                  2025-10-26
+                </div>
+                <div class="post-abstract">
+                  <h2 id="about-triton">About Triton</h2>
+<blockquote>
+<p><a href="https://github.com/triton-lang/triton">Triton</a> is a language and compiler for parallel programming. It aims to provide a Python-based programming environment for productively writing custom DNN compute kernels capable of running at maximal throughput on modern GPU hardware.</p>
+</blockquote>
+<h2 id="安装开发包">安装开发包</h2>
+<pre><code class="language-c">git clone https://github.com/triton-lang/triton.git
+cd triton
+
+pip install -r python/requirements.txt # build-time dependencies
+pip install -e .
+</code></pre>
+<ul>
+<li>
+<p>使用 pip 前记得创建一个专属 venv，避免影响到系统全局 python 环境</p>
+</li>
+<li>
+<p>如 PC 内存较小，默认 install -e 会导致 OOM，建议限制 Job 数量，如<code>MAX_JOBS=8 pip install -e .</code></p>
+</li>
+</ul>
+<h2 id="运行-sample">运行 Sample</h2>
+<pre><code class="language-c">python python/tutorials/01-vector-add.py
+</code></pre>
+<ul>
+<li>
+<p>依赖包涉及<code>torch</code>, <code>numpy</code>, <code>matplotlib</code>,<code>pandas</code>等</p>
+</li>
+<li>
+<p>pip 网络问题安装失败时，记得添加<code>nameserver 8.8.8.8</code>到<code>/etc/resover.conf</code></p>
+</li>
+</ul>
+<h3 id="运行结果">运行结果</h3>
+<pre><code class="language-c">tensor([1.3713, 1.3076, 0.4940,  ..., 0.4705, 1.6737, 1.6400], device='cuda:0')
+tensor([1.3713, 1.3076, 0.4940,  ..., 0.4705, 1.6737, 1.6400], device='cuda:0')
+The maximum difference between torch and triton is 0.0
+vector-add-performance:
+           size      Triton       Torch
+0        4096.0   13.837838   13.963636
+1        8192.0   29.538462   36.141177
+2       16384.0   63.999998   60.235295
+3       32768.0  101.553721  100.310203
+4       65536.0  166.054047  164.939598
+5      131072.0  244.537310  244.537310
+6      262144.0  303.407414  301.546004
+7      524288.0  331.827848  323.368435
+8     1048576.0  360.417951  360.417951
+9     2097152.0  378.092307  379.003379
+10    4194304.0  386.358140  386.453091
+11    8388608.0  390.095241  390.095241
+12   16777216.0  392.798670  392.578071
+13   33554432.0  393.295877  393.215981
+14   67108864.0  393.692747  393.575769
+15  134217728.0  394.034837  393.674278
+</code></pre>
+
+                </div>
+              </div>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/mesa-turnip-for-android-build/">
+                  <h2 class="post-title">Mesa - Turnip For Android Build</h2>
+                </a>
+                <div class="post-date">
+                  2025-08-17
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/bing-xing-ji-suan-/">
+                  <h2 class="post-title">Parallel Computing - CUDA 环境搭建 / 基于开源 Kernel Driver</h2>
+                </a>
+                <div class="post-date">
+                  2025-03-02
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/intel-discrete-gpu-memory-hmm-device-pages/">
+                  <h2 class="post-title">Intel Discrete GPU - Memory - HMM / Device Pages</h2>
+                </a>
+                <div class="post-date">
+                  2025-01-06
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/intel-discrete-gpu-memory-evict-swap/">
+                  <h2 class="post-title">Intel Discrete GPU - Memory - Evict / Swap</h2>
+                </a>
+                <div class="post-date">
+                  2024-12-11
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/intel-discrete-gpu-memory-migrate/">
+                  <h2 class="post-title">Intel Discrete GPU - Memory - Migrate</h2>
+                </a>
+                <div class="post-date">
+                  2024-12-05
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/intel-discrete-gpu-memory-map-page-fault/">
+                  <h2 class="post-title">Intel Discrete GPU - Memory - Map / Page Fault</h2>
+                </a>
+                <div class="post-date">
+                  2024-12-01
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/intel-discrete-gpu-memory-alloc/">
+                  <h2 class="post-title">Intel Discrete GPU - Memory - Alloc</h2>
+                </a>
+                <div class="post-date">
+                  2024-11-24
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/intel-discrete-gpu-kai-pian/">
+                  <h2 class="post-title">Intel Discrete GPU - 开篇</h2>
+                </a>
+                <div class="post-date">
+                  2024-11-20
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/learning-nutshell-inorder-software-architecture/">
+                  <h2 class="post-title">Learning NutShell - Inorder - Software Architecture</h2>
+                </a>
+                <div class="post-date">
+                  2024-02-07
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/steps-to-boot-riscv-on-xiangshan/">
+                  <h2 class="post-title">Learning RISC-V - Introducing XiangShan and NutShell</h2>
+                </a>
+                <div class="post-date">
+                  2023-12-17
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/perf-ply-huan-jing-da-jian/">
+                  <h2 class="post-title">【 PERF 】PLY 环境搭建</h2>
+                </a>
+                <div class="post-date">
+                  2022-04-02
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/systemtap-huan-jing-da-jian-yu-cuo-wu-pai-cha/">
+                  <h2 class="post-title">【 PERF 】systemtap 环境搭建与错误排查</h2>
+                </a>
+                <div class="post-date">
+                  2022-04-01
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/mm-liao-liao-compaction-yu-page-migrate/">
+                  <h2 class="post-title">【 MM 】聊聊 Compaction 与 Page migrate</h2>
+                </a>
+                <div class="post-date">
+                  2022-03-04
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/mm-liao-liao-migratetype-yu-pageblock/">
+                  <h2 class="post-title">【 MM 】聊聊 migratetype 与 pageblock</h2>
+                </a>
+                <div class="post-date">
+                  2022-03-03
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/mm-liao-liao-oom-xuan-mu-biao-de-yuan-ze/">
+                  <h2 class="post-title">【 MM 】聊聊 OOM 选目标原则</h2>
+                </a>
+                <div class="post-date">
+                  2022-03-02
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/mm-liao-liao-ttu-he-rmap/">
+                  <h2 class="post-title">【 MM 】聊聊 TTU 和 RMAP</h2>
+                </a>
+                <div class="post-date">
+                  2022-03-01
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/sched-liao-liao-thermal/">
+                  <h2 class="post-title">【 SCHED 】聊聊 Thermal</h2>
+                </a>
+                <div class="post-date">
+                  2022-02-09
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+            </article>
+          
+            <article class="post-item">
+              <div class="left">
+                <a href="https://zackaryliu.github.io/post/sched-liao-liao-qos/">
+                  <h2 class="post-title">【 SCHED 】聊聊 QOS</h2>
+                </a>
+                <div class="post-date">
+                  2022-02-08
+                </div>
+                <div class="post-abstract">
+                  
+                </div>
+              </div>
+              
+            </article>
+          
+
+          <div class="pagination-container">
+  
+  
+    <a href="https://zackaryliu.github.io/page/2" class="next">下一页 <i class="icon-arrow-ios-forward-outline"></i></a>
+  
+</div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

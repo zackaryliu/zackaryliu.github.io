@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>【 MM 】聊聊 Compaction 与 Page migrate | Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="随着系统的持续使用，内存碎片化问题将会变得越来越严重，如果系统中仍有申请大块物理地址连续页面请求的话，那么内存分配的成功率也将变得越来越低。
+伴随着 Compaction 机制的出现，这类内存分配的囧境得到了缓解，它可以在大块内存紧缺的情况..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">【 MM 】聊聊 Compaction 与 Page migrate</h2>
+            <div class="post-date">2022-03-04</div>
+            
+            <div class="post-content" v-pre>
+              <p>随着系统的持续使用，内存碎片化问题将会变得越来越严重，如果系统中仍有申请大块物理地址连续页面请求的话，那么内存分配的成功率也将变得越来越低。<br>
+伴随着 Compaction 机制的出现，这类内存分配的囧境得到了缓解，它可以在大块内存紧缺的情况下启动，整理对应的内存 zone，尽力保证能够重新梳理出可用的大块内存。<br>
+假设有一系统中内存共有 10 个页面，某一场景下急需 5 个连续页面，这时就是 Compaction 的表现时刻， 对于具体的执行动作可以用一张图来形象的表示出来，<br>
+<img src="https://zackaryliu.github.io/post-images/1655822244982.png" alt="" loading="lazy"><br>
+这时 5 个页面就被整理出来等待被分配，当然这个理解的情况，在前面的文章中我们有聊过 Migratetype，之所以提它是因为 Compaction 在页面规整的过程中是只允许迁移 MIGRATE_MOVABLE 类型页面的，严格的说还有另外一种特殊的页面也可以被迁移，像 zsmalloc 分配出来的页面等，这些页面的 page-&gt;mapping 成员中附有 PAGE_MAPPING_MOVABLE 属性，关于 zsmalloc 后面再聊。</p>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/mm-liao-liao-migratetype-yu-pageblock/">
+                  <h3 class="post-title">
+                    【 MM 】聊聊 migratetype 与 pageblock
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

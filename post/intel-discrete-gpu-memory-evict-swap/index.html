@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>Intel Discrete GPU - Memory - Evict / Swap | Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="Linux 内核内存管理子系统中为系统内存提供了 Kswapd 和 Direct Reclaim 两种内存回收方式，以缓解系统内存 Free 余量不足所带来的内存分配失败问题，然而这种内存回收仅仅面向系统内存范围。如果独立显存遇到类似的空闲..." />
+    <meta name="keywords" content="intel gpu" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">Intel Discrete GPU - Memory - Evict / Swap</h2>
+            <div class="post-date">2024-12-11</div>
+            
+            <div class="post-content" v-pre>
+              <p>Linux 内核内存管理子系统中为系统内存提供了 Kswapd 和 Direct Reclaim 两种内存回收方式，以缓解系统内存 Free 余量不足所带来的内存分配失败问题，然而这种内存回收仅仅面向系统内存范围。如果独立显存遇到类似的空闲显存余量不足导致 APP 分配显存失败的场景怎么办？</p>
+<p>TTM 早就想到了这一点，它为 ttm device 提供了 Evict 能力及 Swap 能力。所谓 Evict 代表从独立显存驱逐一部分可能暂时使用不到(经由 LRU 筛选)的显存至系统内存，Swap 代表系统内存如果存在内存压力的情况下可以将系统内存中显存所占用的部分通过内存子系统的回收途径将其 Swapout 至后备存储。</p>
+<p>现在我们能够得知的是，TTM 为独立显存所提供的能力亦可以将显存从独立显存中回收至内核的内存后备存储中，这点与普通内存的流程相同。但回收的触发时机与普通内存稍有不同，当前 TTM 软件架构中未实现 Kswape 这种提供异步回收显存的方式，Evict 或 Swap 仅在显存分配可能失败时被触发，这点类似于普通内存的 Direct Reclaim；</p>
+<p>先来看一下关于显存回收的全局框图，</p>
+<figure data-type="image" tabindex="1"><img src="https://zackaryliu.github.io/post-images/intel_gpu/swap/global_evict_swap.png" alt="" loading="lazy"></figure>
+<p>下面我们稍详细的解读下两步显存回收流程，值得关注的点是显存回收目标的选择方式与显存的流转过程，</p>
+<h3 id="lru">LRU</h3>
+<p>TTM 架构中显存回收的目标选择也是使用比较常见的 LRU 算法，算法中比较关键的流程在于 LRU 的更新，或者可以称之为老化操作，时间长未使用到的显存越容易被回收。先看来看一下 TTM 架构中操作到 LRU 的几个流程点，</p>
+<ul>
+<li>
+<p>加入 - LRU 的加入在显存分配的过程中，以独立显存为例，它在<code>ttm_resource_init</code>中加入，核心实现如下，</p>
+<pre><code class="language-c++">man = ttm_manager_type(bo-&gt;bdev, place-&gt;mem_type);
+spin_lock(&amp;bo-&gt;bdev-&gt;lru_lock);
+if (bo-&gt;pin_count || ttm_resource_is_swapped(res, bo))
+    list_add_tail(&amp;res-&gt;lru.link, &amp;bo-&gt;bdev-&gt;unevictable);
+else
+    list_add_tail(&amp;res-&gt;lru.link, &amp;man-&gt;lru[bo-&gt;priority]);
+man-&gt;usage += res-&gt;size;
+spin_unlock(&amp;bo-&gt;bdev-&gt;lru_lock);
+</code></pre>
+</li>
+<li>
+<p>老化 - 这一步作为整个算法的重中之重，我们需要识别出哪些显存比较活跃，将这些显存向 LRU 链表中不容易回收的方向移动。在 Xe 驱动中为 GPU 提供了两种显存模式，分别是缺页模式和非缺页模式，</p>
+<ul>
+<li>在非缺页模式下，在用户态驱动没有明确告知每包指令所涉及的显存时，GPU 并不能哪部分显存设置为活跃较为合适，所以当前的做法是在应用下属指令时，将应用对应的所有显存都推进至活跃状态，也就是将显存在 LRU 链表中移动到尾部位置，TTM 所提供的接口为<code>ttm_lru_bulk_move_tail</code>，核心实现为</li>
+</ul>
+<pre><code class="language-c++">for (i = 0; i &lt; TTM_NUM_MEM_TYPES; ++i) {
+    for (j = 0; j &lt; TTM_MAX_BO_PRIORITY; ++j) {
+        struct ttm_lru_bulk_move_pos *pos = &amp;bulk-&gt;pos[i][j];
+        ...
+        man = ttm_manager_type(pos-&gt;first-&gt;bo-&gt;bdev, i);
+        list_bulk_move_tail(&amp;man-&gt;lru[j], &amp;pos-&gt;first-&gt;lru.link,
+                    &amp;pos-&gt;last-&gt;lru.link);
+    }
+}
+</code></pre>
+<p>在显存 move 至 LRU 尾部的过程中，我们能看到流程中并不是显存依次单个 move，而是采用 bulk 的方式，这里其实是 AMD 在 2018 年引入的一个 LRU 更新优化，具体介绍可见<a href="https://www.youtube.com/watch?v=eLdcoGbELpM">Youtube链接</a>；</p>
+<ul>
+<li>在缺页模式下，</li>
+</ul>
+</li>
+<li>
+<p>移除 - 当显存释放时，将会从 LRU 中移除，以独立显存为例的话，其释放接口为<code>xe_ttm_vram_mgr_del</code>，涉及到的 LRU 移除操作如下，</p>
+<pre><code class="language-c++">spin_lock(&amp;bdev-&gt;lru_lock);
+list_del_init(&amp;res-&gt;lru.link);
+man-&gt;usage -= res-&gt;size;
+spin_unlock(&amp;bdev-&gt;lru_lock);
+</code></pre>
+</li>
+</ul>
+<h3 id="evict">EVICT</h3>
+<h3 id="swap">SWAP</h3>
+
+            </div>
+            
+              <div class="tag-container">
+                
+                  <a href="https://zackaryliu.github.io/tag/f3ZAkt3X-c/" class="tag">
+                    intel gpu
+                  </a>
+                
+              </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/intel-discrete-gpu-memory-migrate/">
+                  <h3 class="post-title">
+                    Intel Discrete GPU - Memory - Migrate
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>Linux Sched - ARM64 PSCI 核启动方式 | Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="About PSCI
+关于PSCI的介绍，我在其它博客上找到一段这样的的描述，
+
+The Power State Coordination Interface (PSCI) is an ARM standard that describes..." />
+    <meta name="keywords" content="schedule" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">Linux Sched - ARM64 PSCI 核启动方式</h2>
+            <div class="post-date">2022-02-02</div>
+            
+            <div class="post-content" v-pre>
+              <h3 id="about-psci">About PSCI</h3>
+<p>关于<code>PSCI</code>的介绍，我在其它博客上找到一段这样的的描述，</p>
+<blockquote>
+<p>The Power State Coordination Interface (PSCI) is an ARM standard that describes a software interface for power management between an operating system (not just Linux) and it’s supervisory firmware. The interface allows an operating system to perform power management tasks such as putting CPUs into an idle (low-power) state, bringing CPUs online/offline and turning the system off.</p>
+</blockquote>
+<p>也就是说<code>PSCI</code>是操作系统和<code>supervisory firmware</code>之间的一套接口，在<code>ARM64</code>上<code>supervisory firmware</code>即为<code>ATF</code>，引入<code>PSCI</code>是为了方便<code>CPU</code>核心电源相关的管理，如核的启动、休眠、热拔插等。</p>
+<p>这篇文章主要是跟踪记录下<code>ARM64</code>在核启动相关的流程，其它如休眠、热拔插相关功能后续再议。</p>
+<h3 id="core-boot">Core boot</h3>
+<p>对了解过系统启动初期流程的同学来说，这个函数<code>kernel_init_freeable</code>的调用时间点应该比较熟悉，而我们这篇记录核启动过程所涉及的重要流程就是在这个函数中调用的。注意，我们这里说的核都为“从核”，均由<code>Boot Core</code>启动，而<code>Boot Core</code>由硬件上电后自动启动，所以无需操心软件启动问题。</p>
+<figure data-type="image" tabindex="1"><img src="https://zackaryliu.github.io/post-images/linux_sched/arm64_psci/smp_init.png" alt="" loading="lazy"></figure>
+<p>这个<code>smp_prepare_cpus</code>函数主要是解析<code>CPU</code>的拓扑图，像<code>cluster</code>、<code>core</code>、<code>thread</code>等参数，在ARM64下这些参数主要由设备树传递，还有另一种高级的传递方式叫<code>ACPI(Advanced Configuration and Power Interface)</code>主要应用在<code>x86</code>平台，拓扑的构建我们在这里不多介绍，后续另记录。</p>
+<p>接下来主要看<code>smp_init</code>的实现过程，</p>
+<pre><code class="language-c">void __init smp_init(void)
+{
+	int num_nodes, num_cpus;
+
+	idle_threads_init();												( 1 )
+	cpuhp_threads_init();												( 2 )
+
+	pr_info(&quot;Bringing up secondary CPUs ...\n&quot;);
+
+	bringup_nonboot_cpus(setup_max_cpus);								( 3 )
+
+	num_nodes = num_online_nodes();
+	num_cpus  = num_online_cpus();
+	pr_info(&quot;Brought up %d node%s, %d CPU%s\n&quot;,
+		num_nodes, (num_nodes &gt; 1 ? &quot;s&quot; : &quot;&quot;),
+		num_cpus,  (num_cpus  &gt; 1 ? &quot;s&quot; : &quot;&quot;));
+
+	/* Any cleanup work */
+	smp_cpus_done(setup_max_cpus);										( 4 )
+}
+</code></pre>
+<p>1、对于每一个<code>core</code>都<code>fork</code>出一个<code>idle</code>进程，并将进程描述结构存储在<code>percpu</code>变量<code>&lt;font style=&quot;color:#000000;&quot;&gt;idle_threads&lt;/font&gt;</code><font style="color:#000000;">中，以备后用；</font></p>
+<p><font style="color:#000000;">2、</font></p>
+<p><font style="color:#000000;">3、这就是主要的启核操作，我们直接来挖出它的深层次调用栈，</font></p>
+<pre><code class="language-c">bringup_nonboot_cpus(setup_max_cpus);
+    cpu_up(cpu, CPUHP_ONLINE);
+        cpuhp_up_callbacks(cpu, st, target);
+            cpuhp_invoke_callback_range(true, cpu, st, target);
+</code></pre>
+<p>关于<code>cpuhp_invoke_callback_range</code>，单拿出来看一下，这里会涉及到一个状态机，在核的<code>up</code>与<code>down</code>状态之间，</p>
+<pre><code class="language-c">static int cpuhp_invoke_callback_range(bool bringup,
+				       unsigned int cpu,
+				       struct cpuhp_cpu_state *st,
+				       enum cpuhp_state target)
+{
+	enum cpuhp_state state;
+	int err = 0;
+
+	while (cpuhp_next_state(bringup, &amp;state, st, target)) {
+		err = cpuhp_invoke_callback(cpu, state, bringup, NULL, NULL);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+</code></pre>
+<p>根据<code>cpuhp_next_state</code>这个函数的名字就能看出来个差不多，意思就是将当前的核状态一步步地转换到目标状态上，每转换一个状态就会调用一次<code>cpuhp_invoke_callback</code>执行对应的执行函数，前提是对应状态的相关回调已经实现，否则会跳过对应的状态，一但达到了目标状态就会停止。</p>
+<p>关于状态机中的所有状态可以查该文件，</p>
+<pre><code class="language-c">enum cpuhp_state
+</code></pre>
+<p>所有状态对应的回调函数可以在该文件中定义，</p>
+<pre><code class="language-c">static struct cpuhp_step cpuhp_hp_states[]
+</code></pre>
+<p>我们只关注核启动过程中的关键步骤，直接来看状态切换过程中经过的<code>CPUHP_BRINGUP_CPU</code>状态，它对应的回调是<code>bringup_cpu</code>。</p>
+<pre><code class="language-c">bringup_cpu
+    __cpu_up(cpu, idle);
+        boot_secondary(cpu, idle);
+</code></pre>
+<p>关于<code>boot_secondary</code>函数，它是这样实现的，</p>
+<pre><code class="language-c">static int boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	const struct cpu_operations *ops = get_cpu_ops(cpu);
+
+	if (ops-&gt;cpu_boot)
+		return ops-&gt;cpu_boot(cpu);
+
+	return -EOPNOTSUPP;
+}
+</code></pre>
+<p>接口<code>get_cpu_ops</code>返回的<code>ops</code>取决于<code>&lt;font style=&quot;color:#000000;&quot;&gt;cpu_ops&lt;/font&gt;</code><font style="color:#000000;">的值，在</font><code>&lt;font style=&quot;color:#000000;&quot;&gt;ARM64&lt;/font&gt;</code><font style="color:#000000;">平台上共支持两种</font><code>cpu_operations</code>，分别是<code>&lt;font style=&quot;color:#000000;&quot;&gt;spin_table&lt;/font&gt;</code><font style="color:#000000;">和</font><code>&lt;font style=&quot;color:#000000;&quot;&gt;psci&lt;/font&gt;</code><font style="color:#000000;">，而选择使用哪种方法是在设备树中决定的，而具体的解析和设置流程在</font><code>&lt;font style=&quot;color:#000000;&quot;&gt;setup_arch&lt;/font&gt;</code><font style="color:#000000;">中实现，</font></p>
+<figure data-type="image" tabindex="2"><img src="https://zackaryliu.github.io/post-images/linux_sched/arm64_psci/setup_arch.png" alt="" loading="lazy"></figure>
+<p>函数<code>psci_dt_init</code>将会根据设备树中指定的<code>psci</code>版本去调用具体的<code>.data</code>方法实现。我们以<code>RK3399</code>的设备树内容为例（设备树内容在文末），</p>
+<pre><code class="language-c">static const struct of_device_id psci_of_match[] __initconst = {
+	{ .compatible = &quot;arm,psci&quot;,	.data = psci_0_1_init},
+	{ .compatible = &quot;arm,psci-0.2&quot;,	.data = psci_0_2_init},
+	{ .compatible = &quot;arm,psci-1.0&quot;,	.data = psci_0_2_init},
+	{},
+};
+</code></pre>
+<p>设备树中指定的版本是<code>1.0</code>，那么接下来会调用到<code>psci_0_2_init</code>，</p>
+<pre><code class="language-c">static int __init psci_0_2_init(struct device_node *np)
+{
+	int err;
+
+	err = get_set_conduit_method(np);
+	err = psci_probe();
+
+	return err;
+}
+</code></pre>
+<p>根据设备树中指定的<code>ATF</code>交互接口来决定<code>&lt;font style=&quot;color:#000000;&quot;&gt;invoke_psci_fn&lt;/font&gt;</code><font style="color:#000000;">的具体回调，这里</font><code>RK3399</code>配置为<code>smc</code>，所以回调将指定为<code>__invoke_psci_fn_smc</code>。</p>
+<p>再来看<code>psci_probe</code>，</p>
+<pre><code class="language-c">static int __init psci_probe(void)
+{
+	u32 ver = psci_get_version();										( 1 )
+
+	psci_0_2_set_functions();											( 2 )
+
+	psci_init_migrate();												( 3 )
+
+	return 0;
+}
+</code></pre>
+<p>1、获取<code>PSCI</code>对应的版本号，针对版本做出一些检查；</p>
+<p>2、主要是配置<font style="color:#000000;">psci_ops方法集的各个回调，例如</font><code>cpu_on</code>和<code>cpu_suspend</code>等，在操作对应CPU时最终将会调用到这里；</p>
+<pre><code class="language-c">static int psci_cpu_on(unsigned long cpuid, unsigned long entry_point)
+{
+	int err;
+	u32 fn;
+
+	fn = psci_function_id[PSCI_FN_CPU_ON];
+	err = invoke_psci_fn(fn, cpuid, entry_point, 0);
+	return psci_to_linux_errno(err);
+}
+</code></pre>
+<p>3、</p>
+<figure data-type="image" tabindex="3"><img src="https://zackaryliu.github.io/post-images/linux_sched/arm64_psci/cpu_state.png" alt="" loading="lazy"></figure>
+<h4 id="rk3399-示例设备树">RK3399 示例设备树</h4>
+<pre><code class="language-c">cpus {
+    #address-cells = &lt;0x2&gt;;
+    #size-cells = &lt;0x0&gt;;
+
+    cpu-map {
+
+        cluster0 {
+
+            core0 {
+                cpu = &lt;0x2&gt;;
+            };
+
+            core1 {
+                cpu = &lt;0x3&gt;;
+            };
+
+            core2 {
+                cpu = &lt;0x4&gt;;
+            };
+
+            core3 {
+                cpu = &lt;0x5&gt;;
+            };
+        };
+
+        cluster1 {
+
+            core0 {
+                cpu = &lt;0x6&gt;;
+            };
+
+            core1 {
+                cpu = &lt;0x7&gt;;
+            };
+        };
+    };
+
+    cpu@0 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a53&quot;;
+        reg = &lt;0x0 0x0&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x1e5&gt;;
+        clocks = &lt;0x8 0x8&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x64&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xb&gt;;
+        cpu-supply = &lt;0xc&gt;;
+        phandle = &lt;0x2&gt;;
+    };
+
+    cpu@1 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a53&quot;;
+        reg = &lt;0x0 0x1&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x1e5&gt;;
+        clocks = &lt;0x8 0x8&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x64&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xb&gt;;
+        cpu-supply = &lt;0xc&gt;;
+        phandle = &lt;0x3&gt;;
+    };
+
+    cpu@2 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a53&quot;;
+        reg = &lt;0x0 0x2&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x1e5&gt;;
+        clocks = &lt;0x8 0x8&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x64&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xb&gt;;
+        cpu-supply = &lt;0xc&gt;;
+        phandle = &lt;0x4&gt;;
+    };
+
+    cpu@3 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a53&quot;;
+        reg = &lt;0x0 0x3&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x1e5&gt;;
+        clocks = &lt;0x8 0x8&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x64&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xb&gt;;
+        cpu-supply = &lt;0xc&gt;;
+        phandle = &lt;0x5&gt;;
+    };
+
+    cpu@100 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a72&quot;;
+        reg = &lt;0x0 0x100&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x400&gt;;
+        clocks = &lt;0x8 0x9&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x1b4&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xd&gt;;
+        cpu-supply = &lt;0xe&gt;;
+        phandle = &lt;0x6&gt;;
+    };
+
+    cpu@101 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a72&quot;;
+        reg = &lt;0x0 0x101&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x400&gt;;
+        clocks = &lt;0x8 0x9&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x1b4&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xd&gt;;
+        cpu-supply = &lt;0xe&gt;;
+        phandle = &lt;0x7&gt;;
+    };
+
+    idle-states {
+        entry-method = &quot;psci&quot;;
+
+        cpu-sleep {
+            compatible = &quot;arm,idle-state&quot;;
+            local-timer-stop;
+            arm,psci-suspend-param = &lt;0x10000&gt;;
+            entry-latency-us = &lt;0x78&gt;;
+            exit-latency-us = &lt;0xfa&gt;;
+            min-residency-us = &lt;0x384&gt;;
+            phandle = &lt;0x9&gt;;
+        };
+
+        cluster-sleep {
+            compatible = &quot;arm,idle-state&quot;;
+            local-timer-stop;
+            arm,psci-suspend-param = &lt;0x1010000&gt;;
+            entry-latency-us = &lt;0x190&gt;;
+            exit-latency-us = &lt;0x1f4&gt;;
+            min-residency-us = &lt;0x7d0&gt;;
+            phandle = &lt;0xa&gt;;
+        };
+    };
+};
+</code></pre>
+
+            </div>
+            
+              <div class="tag-container">
+                
+                  <a href="https://zackaryliu.github.io/tag/dLNnTt3KzY/" class="tag">
+                    schedule
+                  </a>
+                
+              </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/sched-liao-liao-cpu-he-tuo-bu-jie-xi/">
+                  <h3 class="post-title">
+                    【 SCHED 】聊聊 CPU 核拓扑解析
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

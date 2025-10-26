@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>【 MM 】聊聊 TTU 和 RMAP | Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="开篇有必要做个名词解释，
+TTU - Try To Umap
+RMAP - Reverse map
+选择一起聊它们两个，想必它们固然是伴有着千丝万缕的联系。
+没错，当内核做出以下操作时，不得不从page的角度出发反向去找到对该page的所有..." />
+    <meta name="keywords" content="memory" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">【 MM 】聊聊 TTU 和 RMAP</h2>
+            <div class="post-date">2022-03-01</div>
+            
+            <div class="post-content" v-pre>
+              <p>开篇有必要做个名词解释，<br>
+TTU - Try To Umap<br>
+RMAP - Reverse map<br>
+选择一起聊它们两个，想必它们固然是伴有着千丝万缕的联系。<br>
+没错，当内核做出以下操作时，不得不从page的角度出发反向去找到对该page的所有映射，然后一一解除。<br>
+1、内存回收时，因为被回收的page要被写入swap或disk，后续不在原因的位置上<br>
+2、内存迁移时，通常会在compaction过程中涉及，原page要被移动到其它位置上<br>
+<img src="https://zackaryliu.github.io/post-images/1650642323802.png" alt="" loading="lazy"></p>
+<p>我们把从vma出发到物理page的映射称为正映射，从物理page反推到vma的映射称之为反映射。<br>
+下面我们正式从kernel中举例分别走一下两个映射对应的流程。<br>
+一、正映射<br>
+我们以新页面分配为例，系统中的页面通常分为anon页和file页，所以我们也要分开来看，<br>
+1、new anon page<br>
+当用户空间malloc申请页面后，kernel中由于存在写时分配优化机制，通过在申请时只会分配一个vma，只有当这段空间真正地被写入数据时，所涉及的page才会被分配出来，当未分配前访问到该page时会触发page_fault异常，而新的page就是在异常里面被分配的。<br>
+malloc申请的页面属于anon页，在异常中分配的路径通常如下（正常分配情况，不考虑swap），</p>
+<pre><code>static vm_fault_t __do_page_fault(struct mm_struct *mm, unsigned long addr,
+                                  unsigned int mm_flags, unsigned long vm_flags,
+                                  struct pt_regs *regs)
+{
+    struct vm_area_struct *vma = find_vma(mm, addr);
+    
+    if (unlikely(!vma))
+        return VM_FAULT_BADMAP;
+    ...
+}
+</code></pre>
+<p>接下来我们重点看来do_anonymous_page</p>
+<p>好，我们重点看来do_anonymous_page</p>
+<p>2、new file page<br>
+反映射</p>
+
+            </div>
+            
+              <div class="tag-container">
+                
+                  <a href="https://zackaryliu.github.io/tag/_7RdgFdAr/" class="tag">
+                    memory
+                  </a>
+                
+              </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/sched-liao-liao-thermal/">
+                  <h3 class="post-title">
+                    【 SCHED 】聊聊 Thermal
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

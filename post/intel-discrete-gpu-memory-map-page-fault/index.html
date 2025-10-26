@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>Intel Discrete GPU - Memory - Map / Page Fault | Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="一块显存分配完成后，通常要根据它的使用场景来决定是否经过 CPU 或 GPU 的访问，一旦涉及到某一方的访问，那么必然要在访问前做地址映射，所谓映射在系统底层的视角来看的话，或许也可以称之为对应页表的填充。
+当前独立显存加入到整个系统后，访..." />
+    <meta name="keywords" content="intel gpu" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">Intel Discrete GPU - Memory - Map / Page Fault</h2>
+            <div class="post-date">2024-12-01</div>
+            
+            <div class="post-content" v-pre>
+              <p>一块显存分配完成后，通常要根据它的使用场景来决定是否经过 CPU 或 GPU 的访问，一旦涉及到某一方的访问，那么必然要在访问前做地址映射，所谓映射在系统底层的视角来看的话，或许也可以称之为对应页表的填充。</p>
+<p>当前独立显存加入到整个系统后，访存的链路将变得稍显复杂。</p>
+<p>CPU / GPU 均可以访问系统内存和独立显存，独立显存通过 PCIE 接入总线后，在 CPU 的视角中，仅是多了份总线地址空间，CPU 可通过 MMU 直接访问。<br>
+独立显存在 GPU 板载集成，可通过内部总线直接访问。需要注意的是，GPU 也存在类 MMU 的 IP，它一般是厂商自己制造，在 Intel 独显中，它被称之为 GAM；<br>
+而 GPU 访问系统内存时，则需要经过自身的 GAM 与系统中外设专用的 SMMU 才能到达目标系统内存，这其中就涉及到两层页表。</p>
+<p>大致访存链路如下，<br>
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/map/global.png" alt="" loading="lazy"></p>
+<p>理清大致的系统结构后，我们步入软件的世界，来看看 Xe 驱动中是怎样将显存映射到 CPU / GPU 的，<br>
+先从 CPU 映射开始看。</p>
+<h3 id="cpu-map">CPU MAP</h3>
+<p>当 Kernel 中完成一次显存 BO 分配时，还要与 DRM 子系统进行关联后，才能被 CPU MAP 操作时被找到，其关联的桥梁为<code>drm_vma_offset_node</code>，这个 offset 是针对一个<code>drm_device</code>而言，也就是在 Xe 驱动中，这个<code>vma offset</code>空间只有一个，一块 BO 插入到空间的接口为<code>drm_vma_offset_add</code>；</p>
+<p>除此之外，BO 分配完成后还会通过<code>drm_gem_handle_create</code>创建 Handle 并将其传回来用户空间，用户空间将这个 Handle 作为 fd 来找到 BO；需要注意的是，Handle 的作用域只有 Xe 的内部，DRM 查找 BO 要根据<code>vma offset</code>；</p>
+<p>用户空间仅能与 DRM 子系统直接对接，那么，CPU 映射一块显存就需要两步，第一步是通过 fd 转换为<code>vma offset</code>，第二步是通过 offset 继而 mmap；</p>
+<p>以下是 Mesa 项目中对 BO 分配及 CPU MAP 的一个示例流程，</p>
+<pre><code class="language-c++">struct drm_xe_gem_create gem_create = {
+    .size        = size_in_bytes,
+    .cpu_caching = DRM_XE_GEM_CPU_CACHING_WB,
+    .placement   = 1u &lt;&lt; ec-&gt;devinfo-&gt;mem.sram.mem.instance,
+};
+intel_ioctl(ec-&gt;fd, DRM_IOCTL_XE_GEM_CREATE, &amp;gem_create);
+
+struct drm_xe_gem_mmap_offset mm = {
+    .handle = gem_create.handle,
+};
+intel_ioctl(ec-&gt;fd, DRM_IOCTL_XE_GEM_MMAP_OFFSET, &amp;mm);
+
+bo-&gt;handle = gem_create.handle;
+bo-&gt;map    = mmap(NULL, size_in_bytes, PROT_READ | PROT_WRITE,
+            MAP_SHARED, ec-&gt;fd, mm.offset);
+</code></pre>
+<p>映射流程会通过 DRM 最终到达 Xe mmap 中，Xe 中没有做过多的操作，重点在于将对应 vma 的 ops 配置为<code>xe_gem_vm_ops</code>，其 fault 成员为<code>xe_gem_fault</code>；</p>
+<h3 id="cpu-fault">CPU Fault</h3>
+<p>当 CPU 访问所映射的 BO 空间后将会触发 Page Fault，那么<code>xe_gem_fault</code>将会被调用，首先内部会通过 vma 中关联的信息取出 BO，<br>
+先通过<code>ttm_io_prot</code>取出 BO 分配时所配置的 Cache 策略，然后根据 BO 的存在位置做出不同的操作流程，</p>
+<p>BO 存在于系统内存，则</p>
+<ul>
+<li>要通过<code>ttm_tt_populate</code>确认 BO 内存为 Pin 住状态，其中可能涉及内存 swap</li>
+<li>通过<code>ttm-&gt;pages[page_offset]</code>取出内存对应 PFN</li>
+</ul>
+<p>BO 存在于独立显存，刚</p>
+<ul>
+<li>pgprot_decrypted ??TODO</li>
+<li>通过<code>ttm_bo_io_mem_pfn(bo, page_offset)</code>取出内存对应 PFN</li>
+</ul>
+<p>最终，我们已经拿到的内存对应的 PFN 和 PROT，那么则可以通过<code>vmf_insert_pfn_prot</code>来完成 CPU 侧的映射页表填充。</p>
+<p>CPU 缺页这里还存在个小优化，它是 prefault，因为显存的分配和使用往往是大小对应的，我们可以假设一块 BO 在 CPU 需要访问时会被大面积访问到，那到预先 Page Fault 的确能够节省很多开销。在 Xe 驱动中，<code>num_prefault</code>的大小默认配置为<code>TTM_BO_VM_NUM_PREFAULT = 16</code>；</p>
+<h3 id="gpu-map">GPU MAP</h3>
+<p>GPU 映射显存的过程要比 CPU 映射复杂些，因为在显存分配章节我们曾提过，BO 的背后所代表的实际显存，可能不仅仅是 Xe 内部分配的，它还可能是 DMA-BUF 或 USER-PTR，然而 CPU 映射这两种情况的话再普通不过，我们没有提及。但在 GPU 映射的场景，它们的映射与 Xe 驱动的实现息息相关。</p>
+<p>BO 背后显存实际类型共有 VRAM / SRAM / DMA-BUF / USER-PTR, 我们在上面提到过，除 VRAM 类型外，像其它三种类似都会存储在系统内存中，而 GPU 到达系统内存的映射不仅需要 GPU 内部的映射，还要外系统 SMMU 的映射。</p>
+<p>先来看看三种类型的 SMMU 映射时机是什么阶段，</p>
+<ul>
+<li>SRAM - 在 BO 初次创建在 validate 后的 move 流程中，会通过<code>xe_tt_map_sg</code>接口，并将所得到的 sg 保存至<code>xe_tt-&gt;sg</code></li>
+<li>DMA-BUF - 这里指的是从外部引入到 Xe 的 DMA-BUF，应用层通过调用<code>fd to handle</code>后，Xe 驱动中的<code>xe_gem_prime_import</code>会被触发，在 Xe 中随即要创建 BO 与 DMA-BUF 进行关联，这个 BO 比较特殊，其 type 为<code>ttm_bo_type_sg</code>，且<code>ttm_tt</code>的 flags 带有<code>TTM_TT_FLAG_EXTERNAL</code>属性，最重要的是，这个 BO 不会再另开辟新的内存空间；触发 SMMU 映射时机的话，与下面的 USER-PTR 类型一起提及；</li>
+<li>USER-PTR - GPU 映射 BO 的入口为<code>XE_VM_BIND</code>，关于 DMA-BUF 与 USER-PTR 的 SMMU 侧映射均在 vm bind 流程中体现；其中通过<code>xe_vma_userptr_pin_pages</code>借助 hmm 主动缺页补足 USER-PTR 所对应的全部虚拟空间，再通过<code>xe_build_sg</code>完成映射；而针对 DMA-BUF 类型，在 vm bind 过程，会通过<code>vm_bind_ioctl_ops_lock_and_prep</code>来做资源准备，其中会再次通过 validate 确认 BO 资源可用，这一次的调用中<code>xe_bo_move_dmabuf</code>将被涉及，其中就通过<code>dma_buf_map_attachment</code>完成了对 DMA-BUF 的 SMMU 侧映射；</li>
+</ul>
+<p>几种涉及 SMMU 映射类型的流程，现在已大致表述完成。其实 vm bind 过程中还有一个很重要的概念没有被提及，它是<code>xe_vma</code>，一段地址空间的映射需要 VA 和 PA，<code>xe_vma</code>的作用是管理其中的 VA；其核心成员为<code>drm_gpuva</code>，它作为与 DRM 子系统连接的桥梁。</p>
+<p>需要注意的是，<code>xe_vma</code>在这里只负责管理 VA，其中并不包含 VA 的分配，因为在 Xe GPU 软件实现中，VA 的分配是在用户态驱动来完成。在 Mesa Xe 用户驱动实现中，VA 往往通过<code>util_vma_heap_alloc_addr</code>来分配。</p>
+<p>每一个<code>xe_vma</code>会通过<code>vm_bind_ioctl_ops_parse</code>解析用户下发的请求所构建成的<code>drm_gpuva_ops</code>并创建，因为<code>xe_vma</code>承载着实际显存的 Bind 使命，它要与所有使用到的显存都存在联系，<br>
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/map/bo_vma.png" alt="" loading="lazy"></p>
+<p>以上流程，完成了 GPU 映射显存时的部分准备工作。现在开始 GPU 自身页表的映射构建流程，上面有提及，这一块的流程可称之为<code>vm bind</code>；<br>
+Vm bind 首先要解析出用户的 bind 请求，单次请求中的 Bind 显存数可以是多个，除 USER-PTR 外，用户均需要通过 Gem Handle 指定所需 Bind 显存目标。</p>
+<p>以下是 Mesa 项目中对 BO 做 GPU MAP 的一个示例流程，</p>
+<pre><code class="language-c++">struct drm_xe_vm_bind_op bind_ops[] = {
+    {
+        .op        = DRM_XE_VM_BIND_OP_MAP,
+        .obj       = ec-&gt;bo.batch.handle,
+        .addr      = ec-&gt;bo.batch.addr,
+        .range     = EXECUTOR_BO_SIZE,
+        .pat_index = ec-&gt;devinfo-&gt;pat.cached_coherent.index,
+    },
+};
+
+struct drm_xe_sync bind_syncs[] = {
+    {
+        .type   = DRM_XE_SYNC_TYPE_SYNCOBJ,
+        .handle = sync_handles[0],
+        .flags  = DRM_XE_SYNC_FLAG_SIGNAL,
+    },
+};
+
+struct drm_xe_vm_bind bind = {
+    .vm_id           = ec-&gt;xe.vm_id,
+    .num_binds       = ARRAY_SIZE(bind_ops),
+    .vector_of_binds = (uintptr_t)bind_ops,
+    .num_syncs       = 1,
+    .syncs           = (uintptr_t)bind_syncs,
+};
+
+intel_ioctl(ec-&gt;fd, DRM_IOCTL_XE_VM_BIND, &amp;bind);
+</code></pre>
+<p>千呼万唤，基于以上前置工作，可以开始最重要的映射 GPU 内部页表映射环节。</p>
+<p>映射流程可拆解为两步，</p>
+<ul>
+<li>
+<p>第一步是 PTE Entry 的构建 - Entry 值的构建在 Xe 驱动中称之为 encode，这一过程主要在<code>xe_pt_stage_bind</code>中来完成。Encode 之初，会根据所映射的内存类型对 pte 赋予一些 default 值，如<code>XE_PPGTT_PTE_DM</code>等，其代表映射的内存在 VRAM 上。之后通过<code>xe_pt_walk_range</code>调用<code>pt_entry</code>回调来完成每一阶页表的填充，如 PDE / PTE 等，在 Xe 驱动中这个回调为<code>xe_pt_stage_bind_entry</code>；</p>
+<p>在页表创建的过程中，如果 PDE 需要新建则通过<code>pde_encode_bo</code>构造 PDE Value 并通过<code>xe_pt_insert_entry</code>插入至上级页表项中，这个 insert 操作可能不能即刻执行的，需要考虑 GPU 的异步性，所以可能会延后更新。PTE 的构建通过<code>pte_encode_vma</code>来完成，除了填充 PA 外，还补充了一些页表项属性，如<code>XE_PAGE_PRESENT</code> / <code>XE_PAGE_RW</code>等。</p>
+<p>关于 PA 的获取，我们已经了解显存多种类型，那么 PA 的获取方式要根据类型进行区分，来看看 Xe 中是如何实现的，</p>
+<pre><code class="language-c++">if (xe_vma_is_userptr(vma))
+    xe_res_first_sg(to_userptr_vma(vma)-&gt;userptr.sg, 0,
+            xe_vma_size(vma), &amp;curs);
+else if (xe_bo_is_vram(bo) || xe_bo_is_stolen(bo))
+    xe_res_first(bo-&gt;ttm.resource, xe_vma_bo_offset(vma),
+             xe_vma_size(vma), &amp;curs);
+else
+    xe_res_first_sg(xe_bo_sg(bo), xe_vma_bo_offset(vma),
+            xe_vma_size(vma), &amp;curs);
+</code></pre>
+</li>
+<li>
+<p>第二步便是刚刚提到的页表项 Entry 的更新 - 这一块的操作在<code>xe_migrate_update_pgtables</code>所涵盖，其中包含通过<code>xe_migrate_update_pgtables_cpu</code>通过 CPU 立即写入页表，但它的前提是所更新的 GPU 任务的 vm 中没有任务依赖在 pending，通过<code>xe_pt_vm_dependencies</code>判断；其次是通过 GPU 来更新页表，实现的接口是<code>__xe_migrate_update_pgtables</code>，涉及内容较多，这一块的细节我们后续在 Migrate 章节分析；</p>
+</li>
+</ul>
+<h3 id="gpu-fault">GPU Fault</h3>
+<p>Intel GPU 的运行模式一般分为两类，</p>
+<ul>
+<li>Excution List - 内核驱动直接的控制面更广，可以直接影响 GPU 的任务抢占</li>
+<li>GUC(GPU uController) - 在内核驱动与 GPU 硬件之间引入一个协处理器，协处理器需要固件来运行，它作为驱动的辅助作用于硬件之上，能够有更高的效率来控制任务的抢占和 HW Fence 的处理<br>
+GPU 缺页的场景仅在 GUC &amp;&amp; USM 模式(USM 介绍详见 - <a href="https://deepkernel.cn/post/intel-discrete-gpu-memory-hmm-device-pages/">链接</a>)下生效，其核心实现为<code>handle_pagefault</code>，</li>
+</ul>
+<p>其流程大致如下，<br>
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/map/gpu_fault.png" alt="" loading="lazy"></p>
+<ul>
+<li>如果 USER-PTR 有发生 Invalide 则需要 repin</li>
+<li>通过 validate 和 rebind 重新 bind vma，其中 validate 可能涉及 swap 和 move，这两点的原理实现后面章节详细分析</li>
+</ul>
+<p>有没有想过<code>xe_vma_userptr_check_repin</code>是怎样判断出 USER-PTR 对应的内存有被 Invalidate 的？其实这是一个 MMU 的在 Invalidate 时的一个 Notify，Xe 驱动中有注册<code>vma_userptr_invalidate</code>回调，如果有发生 invalidate 则 seq 会有更新。</p>
+
+            </div>
+            
+              <div class="tag-container">
+                
+                  <a href="https://zackaryliu.github.io/tag/f3ZAkt3X-c/" class="tag">
+                    intel gpu
+                  </a>
+                
+              </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/intel-discrete-gpu-memory-alloc/">
+                  <h3 class="post-title">
+                    Intel Discrete GPU - Memory - Alloc
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>【 SCHED 】聊聊 CPU 核拓扑解析 | Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="注：本篇所解析的fdt源描述附在文末
+
+一、关于核状态
+系统中CPU核一般在遍历时有四种状态，在本篇内容形状处有必要小小补充一下这部分的知识，源码就不去分析了，按照上图所示的流程就能将每个核的四种状态补齐。但我们应该知道，核是可以支持hot..." />
+    <meta name="keywords" content="schedule" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">【 SCHED 】聊聊 CPU 核拓扑解析</h2>
+            <div class="post-date">2022-02-01</div>
+            
+            <div class="post-content" v-pre>
+              <p>注：本篇所解析的fdt源描述附在文末</p>
+<p><a name="PrcGd"></a></p>
+<h3 id="一-关于核状态">一、关于核状态</h3>
+<p>系统中CPU核一般在遍历时有四种状态，在本篇内容形状处有必要小小补充一下这部分的知识，<br /><img src="https://cdn.nlark.com/yuque/0/2022/png/21766623/1651367204771-89d99179-2a90-4a10-8694-93773b024765.png#clientId=uebe9c810-6c11-4&amp;crop=0&amp;crop=0&amp;crop=1&amp;crop=1&amp;from=paste&amp;height=504&amp;id=u52dfdfda&amp;margin=%5Bobject%20Object%5D&amp;name=image.png&amp;originHeight=504&amp;originWidth=1254&amp;originalType=binary&amp;ratio=1&amp;rotation=0&amp;showTitle=false&amp;size=430552&amp;status=done&amp;style=none&amp;taskId=ube09bde4-ab3f-41e0-a252-532c7370027&amp;title=&amp;width=1254" alt="image.png" loading="lazy"><br />源码就不去分析了，按照上图所示的流程就能将每个核的四种状态补齐。<br />但我们应该知道，核是可以支持hotplug的，其中必然有些操作和这块东西扯上联系，可能的话后续单独补上这块内容。<br>
+<a name="j60TO"></a></p>
+<h3 id="二-核拓扑解析">二、核拓扑解析</h3>
+<p>关于核拓扑的解析过程主要入口在smp_prepare_cpus，那我们就以它为主攻点，层层击破。</p>
+<pre><code class="language-c">void __init smp_prepare_cpus(unsigned int max_cpus)
+{
+	...
+
+	init_cpu_topology();												( 1 )
+
+	this_cpu = smp_processor_id();
+	store_cpu_topology(this_cpu);										( 2 )
+	numa_store_cpu_info(this_cpu);										( 3 )
+	numa_add_cpu(this_cpu);												( 4 )
+
+	if (max_cpus == 0)													( 5 )
+		return;
+
+	for_each_possible_cpu(cpu) {										( 6 )
+
+		per_cpu(cpu_number, cpu) = cpu;
+
+		if (cpu == smp_processor_id())									( 7 )
+			continue;
+
+		ops = get_cpu_ops(cpu);
+		err = ops-&gt;cpu_prepare(cpu);									( 8 )
+
+		set_cpu_present(cpu, true);										( 9 )
+		numa_store_cpu_info(cpu);										( 10 )
+	}
+}
+</code></pre>
+<p>1）拓扑解析的核心过程，在下面详细分析；<br />2）<br />3）TODO numa相关<br />4）TODO numa相关<br />5）<br />6）依次遍历每个已被系统检索到的核心；<br />7）<br />8）获取系统中配置的核配置操作集并调用cpu_prepare方法，操作集也是根据fdt中的参数解析出来的，这里配置为PSCI的方式，关于详细的PSCI操作分析，可见本站其它文章；<br />9）将当前核的状态设为present；<br />10）TODO numa相关</p>
+<p>在init_cpu_topology中先会重置每个核对应的cpu_topology结构，然后调用parse_dt_topology针对核描述进一步解析，我们来看源码，</p>
+<pre><code class="language-c">static int __init parse_dt_topology(void)
+{
+	struct device_node *cn, *map;
+
+	cn = of_find_node_by_path(&quot;/cpus&quot;);
+	map = of_get_child_by_name(cn, &quot;cpu-map&quot;);							( 1 )
+
+	ret = parse_cluster(map, 0);										( 2 )
+
+	topology_normalize_cpu_scale();										( 3 )
+    ...
+}
+</code></pre>
+<p>1）在fdt中检索出&quot;/cpus&quot;根节点，并在其中定位到&quot;cpu-map&quot;子节点，标准的平台都应该在此处将核拓扑描述清楚；<br />2）以&quot;cluster&quot;节点再次切入内部，继续进行层层解析，这一块逻辑注重fdt的解析，我们以一张图来概括；<br /><img src="https://cdn.nlark.com/yuque/0/2022/png/21766623/1651362626483-c61a7a33-7419-48d2-9882-483e7e69c782.png#clientId=uebe9c810-6c11-4&amp;crop=0&amp;crop=0&amp;crop=1&amp;crop=1&amp;from=paste&amp;height=377&amp;id=JgN9U&amp;margin=%5Bobject%20Object%5D&amp;name=image.png&amp;originHeight=377&amp;originWidth=1014&amp;originalType=binary&amp;ratio=1&amp;rotation=0&amp;showTitle=false&amp;size=227060&amp;status=done&amp;style=none&amp;taskId=ub0ef6b1e-24a9-4971-9df1-de798eb53c3&amp;title=&amp;width=1014" alt="image.png" loading="lazy"><br />3）计算综合算力，在下面进行分析；</p>
+<p>拓扑解析parse_core中也包含算力解析，主要在topology_parse_cpu_capacity中实现，我们来看源码，</p>
+<pre><code class="language-c">bool __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
+{
+    ...
+    ret = of_property_read_u32(cpu_node, &quot;capacity-dmips-mhz&quot;,
+				   &amp;cpu_capacity);										( 1 )
+	if (!ret) {
+		if (!raw_capacity) {
+			raw_capacity = kcalloc(num_possible_cpus(),
+					       sizeof(*raw_capacity),
+					       GFP_KERNEL);
+		}
+		raw_capacity[cpu] = cpu_capacity;								( 2 )
+		pr_debug(&quot;cpu_capacity: %pOF cpu_capacity=%u (raw)\n&quot;,
+			cpu_node, raw_capacity[cpu]);
+
+		cpu_clk = of_clk_get(cpu_node, 0);
+		if (!PTR_ERR_OR_ZERO(cpu_clk)) {
+			per_cpu(freq_factor, cpu) =
+				clk_get_rate(cpu_clk) / 1000;							( 3 )
+			clk_put(cpu_clk);
+		}
+	}
+    ...
+}
+</code></pre>
+<p>1）解析核的&quot;capacity-dmips-mhz&quot;描述作为基础算力值；<br />2）将基础算力值转存到raw_capacity以备后面使用；<br />3）根据核节点中指定的时钟获取出对应的时钟频率；</p>
+<pre><code class="language-c">void topology_normalize_cpu_scale(void)
+{
+	u64 capacity;
+	u64 capacity_scale;
+	int cpu;
+
+	if (!raw_capacity)
+		return;
+
+	capacity_scale = 1;
+	for_each_possible_cpu(cpu) {
+		capacity = raw_capacity[cpu] * per_cpu(freq_factor, cpu);
+		capacity_scale = max(capacity, capacity_scale);					( 1 )
+	}
+
+	pr_debug(&quot;cpu_capacity: capacity_scale=%llu\n&quot;, capacity_scale);
+	for_each_possible_cpu(cpu) {
+		capacity = raw_capacity[cpu] * per_cpu(freq_factor, cpu);
+		capacity = div64_u64(capacity &lt;&lt; SCHED_CAPACITY_SHIFT,
+			capacity_scale);											( 2 )
+		topology_set_cpu_scale(cpu, capacity);							( 3 )
+		pr_debug(&quot;cpu_capacity: CPU%d cpu_capacity=%lu\n&quot;,
+			cpu, topology_get_cpu_scale(cpu));
+	}
+}
+</code></pre>
+<p>1）通过遍历和计算得出最大的基础算力和对应频率的乘积转存到capacity_scale；<br />2）实际算力的最终计算公式可表示为<br /><img src="https://cdn.nlark.com/yuque/__latex/5b00eebae914ba02bc6a7713c52a4843.svg#card=math&amp;code=capacity%EF%BC%9D%5Cfrac%7B%28raw%5C_capacity%5Bcpu%5D%20%2A%20per%5C_cpu%28freq%5C_factor%2C%20cpu%29%29%20%3C%3C%20SCHED%5C_CAPACITY%5C_SHIFT%7D%7Bmax%28raw_capacity%5Bcpu%5D%20%2A%20per%5C_cpu%28freq%5C_factor%2C%20cpu%29%29%7D&amp;id=FVnqr" alt="" loading="lazy"><br />3）计算出实际算力并转存到cpu_scale，后续该值可能通过topology_get_cpu_scale接口获取到；<br>
+<a name="Jl0vb"></a></p>
+<h3 id="三-核拓扑及算力调试">三、核拓扑及算力调试</h3>
+<p><a name="XBBsV"></a></p>
+<h3 id="附-参考fdt">附: 参考FDT</h3>
+<pre><code class="language-c">cpus {
+    #address-cells = &lt;0x2&gt;;
+    #size-cells = &lt;0x0&gt;;
+
+    cpu-map {
+
+        cluster0 {
+
+            core0 {
+                cpu = &lt;0x2&gt;;
+            };
+
+            core1 {
+                cpu = &lt;0x3&gt;;
+            };
+
+            core2 {
+                cpu = &lt;0x4&gt;;
+            };
+
+            core3 {
+                cpu = &lt;0x5&gt;;
+            };
+        };
+
+        cluster1 {
+
+            core0 {
+                cpu = &lt;0x6&gt;;
+            };
+
+            core1 {
+                cpu = &lt;0x7&gt;;
+            };
+        };
+    };
+
+    cpu@0 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a53&quot;;
+        reg = &lt;0x0 0x0&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x1e5&gt;;
+        clocks = &lt;0x8 0x8&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x64&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xb&gt;;
+        cpu-supply = &lt;0xc&gt;;
+        phandle = &lt;0x2&gt;;
+    };
+
+    cpu@1 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a53&quot;;
+        reg = &lt;0x0 0x1&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x1e5&gt;;
+        clocks = &lt;0x8 0x8&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x64&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xb&gt;;
+        cpu-supply = &lt;0xc&gt;;
+        phandle = &lt;0x3&gt;;
+    };
+
+    cpu@2 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a53&quot;;
+        reg = &lt;0x0 0x2&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x1e5&gt;;
+        clocks = &lt;0x8 0x8&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x64&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xb&gt;;
+        cpu-supply = &lt;0xc&gt;;
+        phandle = &lt;0x4&gt;;
+    };
+
+    cpu@3 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a53&quot;;
+        reg = &lt;0x0 0x3&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x1e5&gt;;
+        clocks = &lt;0x8 0x8&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x64&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xb&gt;;
+        cpu-supply = &lt;0xc&gt;;
+        phandle = &lt;0x5&gt;;
+    };
+
+    cpu@100 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a72&quot;;
+        reg = &lt;0x0 0x100&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x400&gt;;
+        clocks = &lt;0x8 0x9&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x1b4&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;; 
+        operating-points-v2 = &lt;0xd&gt;;
+        cpu-supply = &lt;0xe&gt;;
+        phandle = &lt;0x6&gt;;
+    };
+
+    cpu@101 {
+        device_type = &quot;cpu&quot;;
+        compatible = &quot;arm,cortex-a72&quot;;
+        reg = &lt;0x0 0x101&gt;;
+        enable-method = &quot;psci&quot;;
+        capacity-dmips-mhz = &lt;0x400&gt;;
+        clocks = &lt;0x8 0x9&gt;;
+        #cooling-cells = &lt;0x2&gt;;
+        dynamic-power-coefficient = &lt;0x1b4&gt;;
+        cpu-idle-states = &lt;0x9 0xa&gt;;
+        operating-points-v2 = &lt;0xd&gt;;
+        cpu-supply = &lt;0xe&gt;;
+        phandle = &lt;0x7&gt;;
+    };
+
+    idle-states {
+        entry-method = &quot;psci&quot;;
+
+        cpu-sleep {
+            compatible = &quot;arm,idle-state&quot;;
+            local-timer-stop;
+            arm,psci-suspend-param = &lt;0x10000&gt;;
+            entry-latency-us = &lt;0x78&gt;;
+            exit-latency-us = &lt;0xfa&gt;;
+            min-residency-us = &lt;0x384&gt;;
+            phandle = &lt;0x9&gt;;
+        };
+
+        cluster-sleep {
+            compatible = &quot;arm,idle-state&quot;;
+            local-timer-stop;
+            arm,psci-suspend-param = &lt;0x1010000&gt;;
+            entry-latency-us = &lt;0x190&gt;;
+            exit-latency-us = &lt;0x1f4&gt;;
+            min-residency-us = &lt;0x7d0&gt;;
+            phandle = &lt;0xa&gt;;
+        };
+    };
+};
+</code></pre>
+
+            </div>
+            
+              <div class="tag-container">
+                
+                  <a href="https://zackaryliu.github.io/tag/dLNnTt3KzY/" class="tag">
+                    schedule
+                  </a>
+                
+              </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/beginning/">
+                  <h3 class="post-title">
+                    New blog &amp; New beginning
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

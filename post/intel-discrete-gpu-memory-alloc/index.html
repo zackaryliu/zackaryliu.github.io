@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>Intel Discrete GPU - Memory - Alloc | Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="在应用使用 GPU 渲染一帧图像的过程中，需要向 GPU 传递 Vertex/Texture 数据信息，渲染完成后应用将得到一帧图像的数据信息，而这些数据信息的承载者便是通过显存，显存的术语通常被叫做 BO (Buffer Object)；..." />
+    <meta name="keywords" content="intel gpu" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">Intel Discrete GPU - Memory - Alloc</h2>
+            <div class="post-date">2024-11-24</div>
+            
+            <div class="post-content" v-pre>
+              <p>在应用使用 GPU 渲染一帧图像的过程中，需要向 GPU 传递 Vertex/Texture 数据信息，渲染完成后应用将得到一帧图像的数据信息，而这些数据信息的承载者便是通过显存，显存的术语通常被叫做 BO (Buffer Object)；</p>
+<h2 id="显存位置定义">显存位置定义</h2>
+<p>先来了解一下几种描述显存存储位置的定义，</p>
+<ul>
+<li>
+<p><strong>XE_PL_SYSTEM</strong></p>
+<ul>
+<li>GPU 映射系统内存的场景，一般用于显存回收时暂存的场景，Xe 驱动称其为 System cache，这里的内存由 shmem 分配，系统可随时回收</li>
+</ul>
+</li>
+<li>
+<p><strong>XE_PL_TT</strong></p>
+<ul>
+<li>GPU 映射系统内存的场景，这里的系统内存由<code>ttm_pool</code>所承载，系统不可直接回收</li>
+</ul>
+</li>
+<li>
+<p><strong>XE_PL_VRAM0</strong></p>
+</li>
+<li>
+<p><strong>XE_PL_VRAM1</strong></p>
+<ul>
+<li>GPU 映射独立显存的场景</li>
+</ul>
+</li>
+<li>
+<p><strong>XE_PL_STOLEN</strong></p>
+<ul>
+<li>与 VRAM 链路基本相同，一般代表从独立显存中预留一块空间给到 Display 使用</li>
+</ul>
+</li>
+</ul>
+<figure data-type="image" tabindex="1"><img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/sram_vram.png" alt="" loading="lazy"></figure>
+<h2 id="显存分配流程">显存分配流程</h2>
+<p>以上介绍了 BO 可能存在的三种存储位置，实际上 BO 期望开辟的位置是由用户态驱动所指定，内核在 BO 创建时会借助<code>__xe_bo_placement_for_flags</code>来解析用户的请求。这个位置并非指定，它可以是多个，依照更佳适合 BO 存在的位置传递到内核。</p>
+<p>用户期望 BO 开辟的位置最终会存储在<code>bo-&gt;placements</code>中，在当前 Xe 驱动中，期望开辟的位置最多有可以有三种，通过<code>XE_BO_MAX_PLACEMENTS</code>指定。</p>
+<p>显存分配的入口为<code>XE_GEM_CREATE</code>，核心函数是<code>ttm_bo_validate</code>，它的职责不仅仅是起到显存分配作用，如它的命名一样，它用来核对当前 BO 的所在位置是否与预期<code>placements</code>匹配，否则将可能会涉及到显存的分配、迁移。</p>
+<p>显存初次分配时是通过<code>ttm_bo_init_reserved</code>来实现的，完成<code>xe_bo</code>结构的初始化后会通过刚提及的核心函数<code>ttm_bo_validate</code>验证显存开辟位置，它通过一些逻辑比较<code>bo-&gt;resource</code>与<code>placement</code>是否匹配，否则将通过<code>ttm_bo_alloc_resource</code>分配资源，继而通过<code>ttm_bo_handle_move_mem</code>做迁移。</p>
+<p>起初这里的流程真是把我绕晕，为什么显存的分配的流程要涉及 validate 和 move ？怎么不是简简单单的 alloc 呢。<br>
+后面再以全局视角来看这里的话，是蕴藏着开发者的智慧在里面的。因为<code>ttm_bo_validate</code>在显存的 Alloc / Evict / Swap 等均有调用，它是一个通用接口。</p>
+<p>在显存的初次分配时，<code>bo-&gt;resource</code>是不存在的，所以 validate 中的<code>ttm_resource_compatible</code>检查一定不符合。我们假设用户期望的显存开辟位置是 VRAM，那么显存的分配将会在<code>ttm_bo_alloc_resource</code>中完成，独显的内存分配是通过 DRM BUDDY 机制实现，分配的函数为<code>drm_buddy_alloc_blocks</code>，分配完成后会涉及 move 函数的调用，这里要注意的是，显存初次分配时并不会涉及实际的 move 操作，仅会调用<code>ttm_bo_move_null</code>来更新<code>bo-&gt;resource</code>，这时 resource 将代表显存的实际存在位置了，后续的 Evict / Swap 操作将借助它来进一步操作。</p>
+<p>如果用户期望的显存开辟位置是 SYSTEM，显存的分配流程又是什么样呢？<br>
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/validate_move.png" alt="" loading="lazy"></p>
+<ul>
+<li>
+<p>VRAM 类型显存通过 drm_buddy 在独显空间进行分配</p>
+</li>
+<li>
+<p>TT 类型显存在系统内存中分配是通过<code>ttm_tt_create</code>实现，它的分配请求转达到<code>ttm_pool</code>，内部再借助<code>alloc_pages</code>或<code>dma_alloc</code>申请系统内存资源</p>
+</li>
+</ul>
+<h3 id="关于-drm_buddy">关于 DRM_BUDDY</h3>
+<p>可以像内存子系统 Buddy 内存管理一样理解 Drm Buddy，它能够按照 order 管理 Pages，也能够 Split / Merge；</p>
+<p>区别比较大的点是，</p>
+<ul>
+<li>Drm Buddy 能够支持的 order 比较大 </li>
+</ul>
+<pre><code class="language-c++">/* Order-zero must be at least SZ_4K */
+#define DRM_BUDDY_MAX_ORDER (63 - 12)
+</code></pre>
+<ul>
+<li>可以支持指定 PA 段的方式分配显存</li>
+</ul>
+<p>一段 Pages 的分配状态在 Drm Buddy 通过<code>drm_buddy_block</code>来管理，其中<code>header</code>成员各个字段的定义如下，<br>
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/buddy_header.png" alt="" loading="lazy"></p>
+<ul>
+<li><code>11, 10</code>指明当前 block 是否空闲、是否已被 Split</li>
+<li><code>5, 0</code>指明当前 block 对就的 order 值</li>
+</ul>
+<h4 id="初始化">初始化</h4>
+<p>核心接口 - <code>drm_buddy_init</code></p>
+<p>假如独显的内存大小是 4G，那么 drm buddy 初始化时 max_order 为 20，</p>
+<pre><code class="language-c++">mm-&gt;max_order = ilog2(size) - ilog2(chunk_size);
+</code></pre>
+<p>每个 order 均搭配有一个 Free Pages List，</p>
+<pre><code class="language-c++">mm-&gt;free_list = kmalloc_array(mm-&gt;max_order + 1,
+                sizeof(struct list_head), GFP_KERNEL);
+</code></pre>
+<p>除了上述的 free_list 关联空闲 Pages 外，Drm Buddy 还提供了一个 roots 链表，记录 Buddy 初始化完成时的 block 信息，</p>
+<pre><code class="language-c++">mm-&gt;n_roots = hweight64(size);
+mm-&gt;roots = kmalloc_array(mm-&gt;n_roots,
+            sizeof(struct drm_buddy_block *), GFP_KERNEL);
+</code></pre>
+<p>假如独显的内存大小是 6G，基础页面大小为 4K，初始化时将通过一个 order 20 的 4G Block 和一个 order 19 的 2G Block 关联完整的独显空间，这两个 Block 都将串联至 roots 中。</p>
+<h4 id="内存分配">内存分配</h4>
+<p>核心接口 - <code>drm_buddy_alloc_blocks</code></p>
+<p>Block 管理策略<br>
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/order.png" alt="" loading="lazy"></p>
+<ul>
+<li>优化从高地址处获取符合要求的 Order Block；</li>
+<li>被拆分的 Block 会从对应的 Order List 上摘除，但 Block 结构并不会被释放，它仍要通过 Left / Right 指针来串联子级 Block，便于其它流程中找到相邻的 Buddy Block 或进行 Merge 操作；</li>
+</ul>
+<p>大致流程</p>
+<figure data-type="image" tabindex="2"><img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/buddy_alloc.png" alt="" loading="lazy"></figure>
+<ul>
+<li>常规显存分配场景下，会根据所请求的 Size 计算出目标 Order，如果 Free List 能够满足，则直接获取；</li>
+<li>如果独立显存有压力，会尝试从较小的 Order 聚合出满足<code>min_order</code>要求的 Block；</li>
+<li>最终得到的 Blocks 可能会因为 Min Order 对齐等要求，实际得到的 Size 要比期望分配的 Size 要大，往往需求进行一步 Trim 操作；</li>
+<li>TODO: alloc pa &amp; try harder</li>
+</ul>
+<h4 id="内存释放">内存释放</h4>
+<p>核心接口 - <code>drm_buddy_free_list</code></p>
+<p>大致流程<br>
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/buddy_free.png" alt="" loading="lazy"></p>
+<ul>
+<li>当前用户触发独立显存释放时，会将 Block 以 Objects 链表的形式传递至释放接口，随后 Buddy 依次遍历它们；</li>
+<li>通过 Block 找到对应 Buddy，如果 Buddy 也为空闲状态，则通过<code>drm_block_free</code>彻底释放 Block，并将它们的 Parent，也是将 Order 拆分前的 Block 重新加入 Free List；</li>
+</ul>
+<h3 id="关于-ttm_pool">关于 TTM_POOL</h3>
+<p>ttm_pool 是 TTM 架构的一个能力子集，它作为系统内存的缓冲器，为硬件加速提供内存推动力。<br>
+ttm_pool 的全局初始化接口为<code>ttm_pool_init</code>，一般情况下它在 TTM 初始化<code>ttm_device_init</code>中被调用。</p>
+<p>每个 TTM 设备内部嵌着 pool 结构，每个 pool 中包含以下具体的内存池，</p>
+<pre><code class="language-c++">struct {
+    struct ttm_pool_type orders[NR_PAGE_ORDERS];
+} caching[TTM_NUM_CACHING_TYPES];
+</code></pre>
+<p>其中<code>TTM_NUM_CACHING_TYPES</code>当前共定义为以下三种 cache 类型，<br>
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/pool_cache_enum.png" alt="" loading="lazy"></p>
+<p>当驱动中有具体的分配需求时，将从指定的 cache 类型池中获取到内存。</p>
+<p>Xe 驱动中在初始化 ttm_pool 时默认禁用了 dma_alloc 及 dma32 相关属性，这时 ttm_pool 将启用全局的内存池作为缓冲，它们分别是</p>
+<ul>
+<li>global_write_combined[NR_PAGE_ORDERS]</li>
+<li>global_uncached[NR_PAGE_ORDERS]</li>
+</ul>
+<p>为什么没有 cached 的池子呢，正如 Code 中注释写道，</p>
+<blockquote>
+<p>DGFX system memory is always WB / ttm_cached, since other caching modes are only supported on x86. DGFX GPU system memory accesses are always coherent with the CPU.</p>
+</blockquote>
+<p>这难道不是说明更应该需要一个 cached 内存池，或者初始化 ttm 时应该默认使能 use_dma_alloc？</p>
+<h4 id="内存分配-2">内存分配</h4>
+<p>对外接口 - <code>ttm_pool_alloc</code></p>
+<p>大致流程<br>
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/pool_alloc.png" alt="" loading="lazy"></p>
+<ul>
+<li>根据指定的 cache 策略和 order 大小选择对应的 pool，并从 pool 中取下 order 对应的 pages</li>
+<li>Cache 策略应用；映射所得到的 Pages</li>
+</ul>
+<h4 id="内存释放-2">内存释放</h4>
+<p>对外接口 - <code>ttm_pool_free</code></p>
+<p>大致流程<br>
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/pool_free.png" alt="" loading="lazy"></p>
+<ul>
+<li>从 page private 取出 order，再根据 cache 类型匹配对应的 pool</li>
+<li>清空内存并放回 pool，通过 lru 节点成员串联至 pool 的 pages 链表</li>
+</ul>
+<h4 id="缓存释放">缓存释放</h4>
+<p>对外接口 - 注册 Shrinker，核心实现为<code>ttm_pool_shrink</code></p>
+<p>大致流程<br>
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/pool_shrink.png" alt="" loading="lazy"></p>
+<ul>
+<li>每种 cache 类型及每个 order 等级都对应一个 pool，它们在初始化时会被注册到 shrinker_list 链接中，在 shrink 流程中会依次选出一个目标 pool</li>
+<li>根据这个目标 pool 取出对应 order 的 pages 进行释放</li>
+</ul>
+<h2 id="显存关联场景">显存关联场景</h2>
+<h3 id="关联-dmabuf">关联 DMABUF</h3>
+<p>系统中的进程间或硬件 IP 间均有共享 Buffer 的需求，DRM 中实现共享的机制称之为 Prime，它由 <a href="https://airlied.blogspot.com/">Dave Airlie</a> 提出。</p>
+<p>这个名字的由来也是故事的，Nvidia 最早实现双显卡，名为 Optimus， Dave 参考并实现后，有趣地将 Linux 下实现的机制命名为了 Prime；<br>
+而 <a href="https://michaelbaystransformers.fandom.com/wiki/Optimus_Prime">Optimus Prime</a> 结合在一起意味着什么？<br>
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/optimus_prime.png" alt="" loading="lazy"><br>
+Prime 当前的架构是借助 DMA-BUF 来实现的，具体的说 Prime 的使用场景主要是 fd 的导入与导出，导入与的导出的操作接口分别对应<code>drm_prime_fd_to_handle_ioctl</code>和<code>drm_prime_handle_to_fd_ioctl</code>，</p>
+<p>在导入的场景中，DMA BUF 背后的内存可能来自于其它模块分配，Prime 先要判断这个 DMA BUF 是否已有 BO 关联，有则转换为 Handle，无则新建 BO 并关联；</p>
+<p>在导出的场景中，用户会先分配一块 BO 内存，然后通过这个 BO 对应的 Handle 进一步将其转换为 fd；</p>
+<h3 id="关联-user-ptr">关联 USER-PTR</h3>
+<p>用户 CPU 侧空间分配的内存也可以直接被 GPU 访问，这一部分使用场景的内存分配完全在用户层面，用户可以通过 Malloc 或 MMAP 分配，然后在 MAP 阶段映射到 GPU 页表中，具体操作后面篇章再介绍。</p>
+<p>需要注意的是，用户通过 Malloc 或 MMAP 分配空间后，这仅代表 VA 已完成分配，实际上给到 GPU 映射时极有可能存在物理内存未分配完整的情况，这样该如何处理？</p>
+<p>在 Xe 驱动的实现中，GPU 在映射 USER-PTR 类型内存时会通过<code>xe_vma_userptr_pin_pages</code>对内存页面做出 Pin 操作，确保物理内存完全分配。Pin 操作的核心是借助<code>hmm_range_fault</code>实现，这是 MM 子系统专门为异构处理器提供的一个内存分配手段，我们可以将它称之为 HMM</p>
+<p>关于 HMM </p>
+
+            </div>
+            
+              <div class="tag-container">
+                
+                  <a href="https://zackaryliu.github.io/tag/f3ZAkt3X-c/" class="tag">
+                    intel gpu
+                  </a>
+                
+              </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/intel-discrete-gpu-kai-pian/">
+                  <h3 class="post-title">
+                    Intel Discrete GPU - 开篇
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

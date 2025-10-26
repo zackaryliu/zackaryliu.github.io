@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>Learning NutShell - Inorder - Software Architecture | Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="从这篇开始，正式步入 NutShell RTL 实现的学习，
+我们将以软件模拟硬件实现的形式去验证 RTL（Register Table Layer），借助之前文章所提到的模拟工具 Verilator 即可以达成模拟硬件运行的目的，这样一来..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">Learning NutShell - Inorder - Software Architecture</h2>
+            <div class="post-date">2024-02-07</div>
+            
+            <div class="post-content" v-pre>
+              <p>从这篇开始，正式步入 NutShell RTL 实现的学习，<br>
+我们将以软件模拟硬件实现的形式去验证 RTL（Register Table Layer），借助之前文章所提到的模拟工具 Verilator 即可以达成模拟硬件运行的目的，这样一来学习成本就会低很多，无需一遍遍的烧录 Bit 流到 FPGA 去验证；</p>
+<h1 id="软件架构">软件架构</h1>
+<p>那我们就先以最简单的模拟架构为起始点开始学习，<br>
+先不考虑 Difftest 差分验证，这点后面再看，因为 Difftest 本身并不是 RTL 的一部分，它只是用来监测 RTL 运转的准确性，<br>
+我们先从实现的核心点出发，看看 Verilator + RTL 软件实现架构图，<br>
+<img src="https://zackaryliu.github.io/post-images/1707322308434.png" alt="" loading="lazy"><br>
+根据以上整体软件框图，提及两个重点，</p>
+<ul>
+<li>RAM 完全是 Verilator 通过 mmap 系统调用开辟的一段内存空间，随后通过 DPI-C 能力将 C++ 侧的接口直接显露给到 Verilog 侧调用；</li>
+<li>所以 RTL 最终实现的 Verilog 代码均会通过 Verilator 翻译为 C++ 数据结构包含进工程并参与编译；</li>
+</ul>
+<h1 id="软件流程">软件流程</h1>
+<p>相信看了上面的整体架构图，我们在大脑中大致可以构建出硬件模拟的运行流程，<br>
+不妨这里再来一起过一遍软件运行流程，</p>
+<h2 id="模拟软件入口">模拟软件入口</h2>
+<p>基于 Verilator 主要是赋予翻译 Verilog 的能力，而具体软件的编译还需要开发者自己来完成，<br>
+NutShell Simulation 的入口位置及具体函数实现如下，</p>
+<pre><code>// difftest/src/test/csrc/common/main.cpp
+
+#define DUT_MODEL Emulator
+
+int main(int argc, const char *argv[]) {
+  ...
+  auto emu = new DUT_MODEL(argc, argv);
+  while (!emu-&gt;is_finished()) {
+    emu-&gt;tick();
+  }
+  ...
+}
+</code></pre>
+<p>NutShell 模拟器软件架构以 Emulator 类为核心展开，<br>
+在如上 main 函数中，先是 new 了一个 Emulator 类，随后循环调用其 tick 方法；</p>
+<p>先来看一下 Emulator 类的构造函数做了哪些事情，</p>
+<pre><code>// difftest/src/test/csrc/verilator/emu.cpp
+
+Emulator::Emulator(int argc, const char *argv[]):
+  dut_ptr(new VSimTop),
+  cycles(0), trapCode(STATE_RUNNING), elapsed_time(uptime())
+{
+  ...
+  args = parse_args(argc, argv);
+  ...
+  // init flash
+  init_flash(args.flash_bin);
+  ...
+  // init core
+  reset_ncycles(10);
+  ...
+  init_ram(args.image, ram_size);
+  ...
+}
+</code></pre>
+<ul>
+<li>硬件 RTL 引入dut_ptr(new VSimTop)，这里是重中之重，Verilaor 将 RTL 翻译转换成了 VSimTop 类，那么 Verilator 的能力就会在这里有所体现；</li>
+<li>参数解析，可执行文件的传递、日志控制、cycles 最大值限制或 difftest 环境的指定等会在这里解析和配置；</li>
+<li>初始化 flash，看工程中好像没有实际引用，暂不关注；</li>
+<li>复位硬件，这里会拉低 Reset 信号给硬件做个复位；</li>
+<li>初始化 ram，通过 mmap 系统调用分配一段内存空间，可执行文件会被写入到内存中，而后将这段内存空间作为 RTL 的 DDR；</li>
+</ul>
+<p>构造完成后，步入到上面提到的 tick 方法，</p>
+<pre><code>// difftest/src/test/csrc/verilator/emu.cpp
+
+int Emulator::tick() {
+  ...
+  single_cycle();
+  ...
+  trapCode = difftest_nstep(step);
+  ...
+}
+</code></pre>
+<ul>
+<li>single_cycle 的作用是驱动整个 RTL，它通过不停地将dut_ptr-&gt;clock时钟信号置为高、低电平来达到驱动的目的；</li>
+<li>通过 difftest 来做 RTL 执行时的实时差分验证；</li>
+</ul>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/steps-to-boot-riscv-on-xiangshan/">
+                  <h3 class="post-title">
+                    Learning RISC-V - Introducing XiangShan and NutShell
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

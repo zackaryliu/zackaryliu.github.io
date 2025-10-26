@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>【 SCHED 】聊聊 Schedule Domain 的构建 | Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="schedule domain 即为CPU调度域，在源码中经常定义为 sched_domain
+提到了调度域那一定少不了 schedule group 调度组，
+调试域将作为构建调度组的依赖，调度组中还有一个 capacity，可以用其来评..." />
+    <meta name="keywords" content="schedule" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">【 SCHED 】聊聊 Schedule Domain 的构建</h2>
+            <div class="post-date">2022-02-03</div>
+            
+            <div class="post-content" v-pre>
+              <p>schedule domain 即为CPU调度域，在源码中经常定义为 sched_domain<br>
+提到了调度域那一定少不了 schedule group 调度组，<br>
+调试域将作为构建调度组的依赖，调度组中还有一个 capacity，可以用其来评估该组是否busy，<br>
+好，下面我们依次来分析它们的构建过程。</p>
+<p>调度域会参考 CPU 的组成结构来构建，所以我们有必要先了解下 core 的解析过程，作为一个前期补充。<br>
+一、核拓扑解析</p>
+<p>二、构建调度域<br>
+先来看构建调度域的入口，</p>
+<pre><code>int sched_init_domains(const struct cpumask *cpu_map)
+{
+    ...
+	arch_update_cpu_topology();											( 1 )
+	asym_cpu_capacity_scan();											( 2 )
+	ndoms_cur = 1;
+	doms_cur = alloc_sched_domains(ndoms_cur);							( 3 )
+	if (!doms_cur)
+		doms_cur = &amp;fallback_doms;
+	cpumask_and(doms_cur[0], cpu_map,
+        housekeeping_cpumask(HK_FLAG_DOMAIN));							( 4 )
+	err = build_sched_domains(doms_cur[0], NULL);						( 5 )
+
+	return err;
+}
+</code></pre>
+<p>1）TODO: 不知用意<br>
+2）TODO: capacity 相关<br>
+3）动态分配一个cpumask_var空间，分配不成功就用fallback_doms代替；<br>
+4）这里是对系统中可用核心的一个约束，HK是housekeeping的缩写，例如我们在系统启动前通过isocpus指定了某些核心不参与常规的调度的话，那么将会被加入到housekeeping cpu中，所以这里在构建调度域前会前它们除去，当然housekeeping cpu在后面系统启动后我们是可以主动向已分离的核心分配任务的，主要看业务场景；<br>
+5）核心实现部分是build_sched_domains，里面包含了调度域、调度组以及capacity的解析构建；</p>
+<p>我们将build_sched_domains来分层依次看吧，先看调度域，</p>
+
+            </div>
+            
+              <div class="tag-container">
+                
+                  <a href="https://zackaryliu.github.io/tag/dLNnTt3KzY/" class="tag">
+                    schedule
+                  </a>
+                
+              </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/sched-liao-liao-arm64-psci-he-qi-dong-fang-shii/">
+                  <h3 class="post-title">
+                    Linux Sched - ARM64 PSCI 核启动方式
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

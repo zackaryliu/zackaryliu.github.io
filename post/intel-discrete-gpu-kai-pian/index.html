@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>Intel Discrete GPU - 开篇 | Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="近期对独立显卡的硬件架构及软件原理非常感兴趣，独显的 Top 产品当前是来自于 Nvidia 与 AMD，以它们为学习对象固然不错，但考虑他们驱动程序的开源程度，综合考量还是以 Intel 独显为学习对象学起。
+学习 Intel 的几项优势..." />
+    <meta name="keywords" content="intel gpu" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">Intel Discrete GPU - 开篇</h2>
+            <div class="post-date">2024-11-20</div>
+            
+            <div class="post-content" v-pre>
+              <p>近期对独立显卡的硬件架构及软件原理非常感兴趣，独显的 Top 产品当前是来自于 Nvidia 与 AMD，以它们为学习对象固然不错，但考虑他们驱动程序的开源程度，综合考量还是以 Intel 独显为学习对象学起。</p>
+<p>学习 Intel 的几项优势在于，</p>
+<ul>
+<li>
+<p>GPU 硬件本身的资料丰富，描述详细</p>
+</li>
+<li>
+<p>用户层驱动（UMD）与内核层驱动（KMD）通通开源，利于软件原理学习</p>
+</li>
+<li>
+<p>Intel 独显产品线刚刚兴起，可以跟随它的前进脚本共同成长，Follow Intel 不会错</p>
+</li>
+</ul>
+<p>Intel 长期以来一直以 I915 作为内核驱动，新的独显产品开辟以后，内核驱动也迎来软件架构更新，新的驱动已加入内核源码树，其命令为 Xe，全新驱动的出现意味着 Intel 将来新的产品或能力都会向 Xe 集成。</p>
+<p>Intel 的第一款独显产品命名为 DG1（Discrete GPU），</p>
+<figure data-type="image" tabindex="1"><img src="https://zackaryliu.github.io/post-images/intel_gpu/intro/dg1.png" alt="" loading="lazy"></figure>
+<p>对于 Intel 来说具有标志性的战略意义，对于我们学习来说，可以完全将它视作为课本，一款用来入门的“教材”。</p>
+<p>后续，将从以下几个方面来展开对 Intel 独显的学习（各方面将在分析完成后，更新对应链接），</p>
+<ul>
+<li>
+<p>Hardware</p>
+<ul>
+<li>
+<p>Xe LPG</p>
+</li>
+<li>
+<p>Xe HPG</p>
+</li>
+</ul>
+</li>
+<li>
+<p>Kernel Driver - Xe Schedule</p>
+<ul>
+<li>
+<p>Drm sched</p>
+</li>
+<li>
+<p>Reservation</p>
+</li>
+<li>
+<p>GuC</p>
+</li>
+<li>
+<p>ww_mutex lock</p>
+</li>
+</ul>
+</li>
+<li>
+<p>Kernel Driver - Xe Memory</p>
+<ul>
+<li>
+<p>Intro / GEM / TTM</p>
+</li>
+<li>
+<p><a href="https://deepkernel.cn/post/intel-discrete-gpu-memory-alloc/">Alloc / Buddy / TTM Pool</a></p>
+</li>
+<li>
+<p><a href="https://deepkernel.cn/post/intel-discrete-gpu-memory-hmm-device-pages/">HMM / Device Pages</a></p>
+</li>
+<li>
+<p><a href="https://deepkernel.cn/post/intel-discrete-gpu-memory-map-page-fault/">Map / Page Fault</a></p>
+</li>
+<li>
+<p><a href="https://deepkernel.cn/post/intel-discrete-gpu-memory-migrate/">Migrate</a></p>
+</li>
+<li>
+<p><a href="https://deepkernel.cn/post/intel-discrete-gpu-memory-evict-swap/">Evict / Swap</a></p>
+</li>
+</ul>
+</li>
+<li>
+<p>Kernel Driver - Xe vGPU</p>
+<ul>
+<li>
+<p>GVT-g</p>
+</li>
+<li>
+<p>SR-IOV</p>
+</li>
+</ul>
+</li>
+<li>
+<p>User Driver - Vulkan</p>
+</li>
+</ul>
+
+            </div>
+            
+              <div class="tag-container">
+                
+                  <a href="https://zackaryliu.github.io/tag/f3ZAkt3X-c/" class="tag">
+                    intel gpu
+                  </a>
+                
+              </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/learning-nutshell-inorder-software-architecture/">
+                  <h3 class="post-title">
+                    Learning NutShell - Inorder - Software Architecture
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>【 MM 】聊聊 OOM 选目标原则 | Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="这一篇的主旨是 OOM 选目标的原则，也就是我们只关注发生 OOM 之后的事情发展，包括是否应该继续 OOM 选一个任务 kill 掉释放空间，以及具体应该选择哪一个任务来 kill，选择的依据是什么。
+我们暂不关心为何会发生 OOM，因为..." />
+    <meta name="keywords" content="memory" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">【 MM 】聊聊 OOM 选目标原则</h2>
+            <div class="post-date">2022-03-02</div>
+            
+            <div class="post-content" v-pre>
+              <p>这一篇的主旨是 OOM 选目标的原则，也就是我们只关注发生 OOM 之后的事情发展，包括是否应该继续 OOM 选一个任务 kill 掉释放空间，以及具体应该选择哪一个任务来 kill，选择的依据是什么。<br>
+我们暂不关心为何会发生 OOM，因为这一块属于内存申请或内存回收的范畴中，我们会在其它文章中单独聊。</p>
+<h3 id="一-原理分析">一、原理分析</h3>
+<p>那我们现在就直接从触发 OOM 的入口开始看起，通常 OOM 的发生是因为在内存紧张时，在采取了一些回收、规整手段后仍无法缓解，得不到想要的内存页，不得以才触发的。所以它的入口藏在内存申请的流程中，它就是 __alloc_pages_may_oom，</p>
+<pre><code class="language-c">static inline struct page *
+__alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+	const struct alloc_context *ac, unsigned long *did_some_progress)
+{
+	struct oom_control oc = {
+		.zonelist = ac-&gt;zonelist,
+		.nodemask = ac-&gt;nodemask,
+		.memcg = NULL,
+		.gfp_mask = gfp_mask,
+		.order = order,
+	};
+	struct page *page;
+
+	*did_some_progress = 0;												( 1 )
+
+	if (!mutex_trylock(&amp;oom_lock)) {									( 2 )
+		*did_some_progress = 1;
+		schedule_timeout_uninterruptible(1);
+		return NULL;
+	}
+
+	page = get_page_from_freelist((gfp_mask | __GFP_HARDWALL) &amp;			( 3 )
+				      ~__GFP_DIRECT_RECLAIM, order,
+				      ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac);
+	if (page)
+		goto out;
+
+	/* Coredumps can quickly deplete all memory reserves */
+	if (current-&gt;flags &amp; PF_DUMPCORE)									( 4 )
+		goto out;
+	/* The OOM killer will not help higher order allocs */
+	if (order &gt; PAGE_ALLOC_COSTLY_ORDER)								( 5 )
+		goto out;
+
+	if (gfp_mask &amp; (__GFP_RETRY_MAYFAIL | __GFP_THISNODE))
+		goto out;
+	/* The OOM killer does not needlessly kill tasks for lowmem */
+	if (ac-&gt;highest_zoneidx &lt; ZONE_NORMAL)
+		goto out;
+	if (pm_suspended_storage())
+		goto out;
+
+	/* Exhausted what can be done so it's blame time */
+	if (out_of_memory(&amp;oc) || WARN_ON_ONCE(gfp_mask &amp; __GFP_NOFAIL)) {	( 6 )
+		*did_some_progress = 1;
+
+		/*
+		 * Help non-failing allocations by giving them access to memory
+		 * reserves
+		 */
+		if (gfp_mask &amp; __GFP_NOFAIL)
+			page = __alloc_pages_cpuset_fallback(gfp_mask, order,
+					ALLOC_NO_WATERMARKS, ac);
+	}
+out:
+	mutex_unlock(&amp;oom_lock);
+	return page;
+}
+</code></pre>
+<p>1）我对这个标识的理解是，在内存紧张的情况发生后是否已经做过了什么举措来缓解这一囧境，例如直接回收、OOM 等，如果有做过那就置为 1；<br>
+2）这个锁只有在 OOM 上下文涉及，如果获取失败则说明有其它任务正在做 OOM，所以在这里退出即可；<br>
+3）<br>
+4）如果当前任务发生了 coredump，那么也不再继续 OOM，后续 coredump 也会释放全部内存；<br>
+5）符合以下几种条件的，OOM 也会立刻终止，<br>
+① order 相对较高的时；<br>
+②<br>
+③<br>
+④<br>
+6）在这里调用到 out_of_memory 继续流程；<br>
+那我们接着来看，</p>
+<pre><code class="language-c">bool out_of_memory(struct oom_control *oc)
+{
+	unsigned long freed = 0;
+
+	if (oom_killer_disabled)											( 1 )
+		return false;
+
+	if (!is_memcg_oom(oc)) {
+		blocking_notifier_call_chain(&amp;oom_notify_list, 0, &amp;freed);
+		if (freed &gt; 0)
+			/* Got some memory back in the last second. */
+			return true;
+	}
+
+	/*
+	 * If current has a pending SIGKILL or is exiting, then automatically
+	 * select it.  The goal is to allow it to allocate so that it may
+	 * quickly exit and free its memory.
+	 */
+	if (task_will_free_mem(current)) {									( 2 )
+		mark_oom_victim(current);
+		wake_oom_reaper(current);
+		return true;
+	}
+
+	/*
+	 * The OOM killer does not compensate for IO-less reclaim.
+	 * pagefault_out_of_memory lost its gfp context so we have to
+	 * make sure exclude 0 mask - all other users should have at least
+	 * ___GFP_DIRECT_RECLAIM to get here. But mem_cgroup_oom() has to
+	 * invoke the OOM killer even if it is a GFP_NOFS allocation.
+	 */
+	if (oc-&gt;gfp_mask &amp;&amp; !(oc-&gt;gfp_mask &amp; __GFP_FS)
+            &amp;&amp; !is_memcg_oom(oc))										( 3 )
+		return true;
+
+	/*
+	 * Check if there were limitations on the allocation (only relevant for
+	 * NUMA and memcg) that may require different handling.
+	 */
+	oc-&gt;constraint = constrained_alloc(oc);								( 4 )
+	if (oc-&gt;constraint != CONSTRAINT_MEMORY_POLICY)
+		oc-&gt;nodemask = NULL;
+	check_panic_on_oom(oc);
+
+	if (!is_memcg_oom(oc) &amp;&amp; sysctl_oom_kill_allocating_task &amp;&amp;			( 5 )
+	    current-&gt;mm &amp;&amp; !oom_unkillable_task(current) &amp;&amp;
+	    oom_cpuset_eligible(current, oc) &amp;&amp;
+	    current-&gt;signal-&gt;oom_score_adj != OOM_SCORE_ADJ_MIN) {
+		get_task_struct(current);
+		oc-&gt;chosen = current;
+		oom_kill_process(oc, &quot;Out of memory (oom_kill_allocating_task)&quot;);
+		return true;
+	}
+
+	select_bad_process(oc);												( 6 )
+	/* Found nothing?!?! */
+	if (!oc-&gt;chosen) {
+		dump_header(oc, NULL);
+		pr_warn(&quot;Out of memory and no killable processes...\n&quot;);
+		/*
+		 * If we got here due to an actual allocation at the
+		 * system level, we cannot survive this and will enter
+		 * an endless loop in the allocator. Bail out now.
+		 */
+		if (!is_sysrq_oom(oc) &amp;&amp; !is_memcg_oom(oc))
+			panic(&quot;System is deadlocked on memory\n&quot;);
+	}
+	if (oc-&gt;chosen &amp;&amp; oc-&gt;chosen != (void *)-1UL)
+		oom_kill_process(oc, !is_memcg_oom(oc) ? &quot;Out of memory&quot; :		( 7 )
+				 &quot;Memory cgroup out of memory&quot;);
+	return !!oc-&gt;chosen;
+}
+</code></pre>
+<p>1）一般只有在设备即将进去休眠时才会将 OOM KILLER 关掉；<br>
+2）<br>
+3）<br>
+4）<br>
+5）<br>
+6）正式进入猎杀时刻，会在后续流程中评估出一个最佳的对象来 kill；<br>
+7）</p>
+<p>如果流程已经走到 select_bad_process，那便说明系统已经决定要找一个任务来祭天了，关于是这个任务是如何被评估选中的，我们继续来看，<br>
+在不考虑 memcg oom 的情况下，它会依次遍历所有的 process，对其调用 oom_evaluate_task 进行评估，</p>
+<pre><code class="language-c">static int oom_evaluate_task(struct task_struct *task, void *arg)
+{
+	struct oom_control *oc = arg;
+	long points;
+
+	if (oom_unkillable_task(task))										( 1 )
+		goto next;
+
+	/* p may not have freeable memory in nodemask */
+	if (!is_memcg_oom(oc) &amp;&amp; !oom_cpuset_eligible(task, oc))			( 2 )
+		goto next;
+
+	if (!is_sysrq_oom(oc) &amp;&amp; tsk_is_oom_victim(task)) {					( 3 )
+		if (test_bit(MMF_OOM_SKIP, &amp;task-&gt;signal-&gt;oom_mm-&gt;flags))
+			goto next;
+		goto abort;
+	}
+
+	if (oom_task_origin(task)) {										( 4 )
+		points = LONG_MAX;
+		goto select;
+	}
+
+	points = oom_badness(task, oc-&gt;totalpages);							( 5 )
+	if (points == LONG_MIN || points &lt; oc-&gt;chosen_points)
+		goto next;
+
+select:
+	if (oc-&gt;chosen)
+		put_task_struct(oc-&gt;chosen);
+	get_task_struct(task);
+	oc-&gt;chosen = task;													( 6 )
+	oc-&gt;chosen_points = points;
+next:
+	return 0;
+abort:
+	if (oc-&gt;chosen)
+		put_task_struct(oc-&gt;chosen);
+	oc-&gt;chosen = (void *)-1UL;
+	return 1;
+}
+</code></pre>
+<p>1）判断所选中的任务是否允许被 kill，如果该任务是 init 1 号进程或为内核线程的话，则返回 true 代表不能被选中；<br>
+2）<br>
+3）<br>
+4）在这里可以判断下当前任务是否申请过大量的内存，有的话直接选中，内核中有各别功能，例如 swapoff 系统调用会在其中通过 set_current_oom_origin 标记当前任务有大量内存申请；<br>
+5）评估当前任务的 point，分数越高越容易被选中，具体计算方法下面分析；<br>
+6）更新 oc-&gt;chosen，它作为被选中对象信息记录的载体；</p>
+<p>现在来看一下 point 的值到底是怎样计算出来的，</p>
+<pre><code class="language-c">long oom_badness(struct task_struct *p, unsigned long totalpages)
+{
+	long points;
+	long adj;
+
+	if (oom_unkillable_task(p))											( 1 )
+		return LONG_MIN;
+
+	p = find_lock_task_mm(p);											( 2 )
+	if (!p)
+		return LONG_MIN;
+
+	adj = (long)p-&gt;signal-&gt;oom_score_adj;
+	if (adj == OOM_SCORE_ADJ_MIN ||
+			test_bit(MMF_OOM_SKIP, &amp;p-&gt;mm-&gt;flags) ||
+			in_vfork(p)) {												( 3 )
+		task_unlock(p);
+		return LONG_MIN;
+	}
+
+	/*
+	 * The baseline for the badness score is the proportion of RAM that each
+	 * task's rss, pagetable and swap space use.
+	 */
+	points = get_mm_rss(p-&gt;mm) + get_mm_counter(p-&gt;mm, MM_SWAPENTS) +
+		mm_pgtables_bytes(p-&gt;mm) / PAGE_SIZE;							( 4 )
+	task_unlock(p);
+
+	/*
+	 * Normalize to oom_score_adj units.  You should never
+	 * multiply by zero here, or oom_score_adj will not work.
+	 */
+	adj *= (totalpages + 1000) / 1000;
+	points += adj;														( 5 )
+
+	return points;
+}
+
+</code></pre>
+<p>1）上面已提及；<br>
+2）TODO<br>
+3）取出该任务对应的 oom_score_adj 值，它可以用户态接口进行指定，范围是 [-1000, 1000]，<br>
+4）统计该任务所占用的内存页面数并转存到 point；<br>
+5）计算该任务对应的 badness，涉及到的计算公式如下，<br>
+<img src="https://cdn.nlark.com/yuque/__latex/eb0c2567ccafa8b6ce9db7dbd132d5aa.svg#card=math&amp;code=badness%EF%BC%9Dpoint%2Badj%2A%5Cfrac%7Btotalpages%20%2B%201000%7D%7B1000%7D&amp;id=QKnWr" alt="" loading="lazy"><br>
+分数最高者那么将做为 OOM 的最佳对象。</p>
+<p>用一张图示总结一下上述的全部过程，当然 OOM 不仅仅只会在内存申请的过程中会触发到，也在 sysrq、page_fault 中有涉及，<br>
+<img src="https://cdn.nlark.com/yuque/0/2022/png/21766623/1652452589453-707f0d51-759e-4cdf-8f5b-d9201bde4cba.png#clientId=ue16dcb4c-ef02-4&amp;crop=0&amp;crop=0&amp;crop=1&amp;crop=1&amp;from=paste&amp;height=462&amp;id=u5d48a03f&amp;margin=%5Bobject%20Object%5D&amp;name=image.png&amp;originHeight=462&amp;originWidth=572&amp;originalType=binary&amp;ratio=1&amp;rotation=0&amp;showTitle=false&amp;size=138029&amp;status=done&amp;style=none&amp;taskId=u26781dff-0532-4203-a5b7-733a1a5682d&amp;title=&amp;width=572" alt="image.png" loading="lazy"></p>
+<h3 id="二-相关调试">二、相关调试</h3>
+
+            </div>
+            
+              <div class="tag-container">
+                
+                  <a href="https://zackaryliu.github.io/tag/_7RdgFdAr/" class="tag">
+                    memory
+                  </a>
+                
+              </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/mm-liao-liao-ttu-he-rmap/">
+                  <h3 class="post-title">
+                    【 MM 】聊聊 TTU 和 RMAP
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

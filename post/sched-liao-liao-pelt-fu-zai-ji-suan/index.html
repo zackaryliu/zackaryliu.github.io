@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>【 SCHED 】聊聊 PELT 负载计算 | Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="What's PELT
+所谓 PELT，其为 Per-entity load tracking，可理解为它是一个负载计算的算法，它在 kernel 3.8 版本被引入来取代以往的算法。
+如果想加深对 PELT 的理解，那就得追溯一下历史，究..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">【 SCHED 】聊聊 PELT 负载计算</h2>
+            <div class="post-date">2022-02-05</div>
+            
+            <div class="post-content" v-pre>
+              <p>What's PELT<br>
+所谓 PELT，其为 Per-entity load tracking，可理解为它是一个负载计算的算法，它在 kernel 3.8 版本被引入来取代以往的算法。<br>
+如果想加深对 PELT 的理解，那就得追溯一下历史，究竟是怎么背景才旦生出 PELT 的呢？<br>
+之所以存在负载计算，是因为在 SMP 架构上，为了避免”一核有难，七核围观“的囧境，我们需要得知每个核的运行状态是怎么样，当前核对应的运行队列中的任务量是否庞大 ...<br>
+以往负载计算的处理方式是，它会关注每个运行队列，并掌握每个运行队列的负载大小，</p>
+<p>那么 PELT 这时迎难而上，基于每个 entity 来计算负载，统计的粒度更加细化，更有助于做均衡处理，而 entity 不仅仅是一个 task，要知道 CFS 调度器还支持组调度（task group），而它也被看作是一个 entity。<br>
+为了做到 Per-entity 的负载跟踪，时间被分成了 1024us 的序列，在每一个 1024us 的周期中，一个 entity 对系统负载的贡献可以根据该实体处于就绪状态（包含运行态）的时间进行计算。如果在该周期内就绪的时间是 x，那么对系统负载的贡献就是 x / 1024，</p>
+<p>如果一个任务在最近三个周期内的就绪时间分别为 P0、P1、P2，如下图所示，</p>
+<p>那么根据 PELT，即可得出该任务当前负载 U' 如下，U 为之前负载值，<br>
+U' = P0 + P1<em>y^0 + P2</em>y^2 + U*y^3 + ...<br>
+上式即为 PELT 的灵魂所在，本篇的一大重点就是要阐述出在 kernel 中在怎么得出上式的。<br>
+那我们就从这个核心出发，看看如果用源码来实现 PELT，我们直接抛出 CORE，它就是 accumulate_sum</p>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/sched-liao-liao-cpu-fu-zai-jun-heng/">
+                  <h3 class="post-title">
+                    【 SCHED 】聊聊 CPU 负载均衡
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

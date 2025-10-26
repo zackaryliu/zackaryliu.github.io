@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://zackaryliu.github.io</id>
+    <title>Deep Kernel</title>
+    <updated>2025-10-26T14:32:43.750Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://zackaryliu.github.io"/>
+    <link rel="self" href="https://zackaryliu.github.io/atom.xml"/>
+    <subtitle>温故而知新</subtitle>
+    <logo>https://zackaryliu.github.io/images/avatar.png</logo>
+    <icon>https://zackaryliu.github.io/favicon.ico</icon>
+    <rights>All rights reserved 2025, Deep Kernel</rights>
+    <entry>
+        <title type="html"><![CDATA[Triton 初体验]]></title>
+        <id>https://zackaryliu.github.io/post/triton-chu-ti-yan/</id>
+        <link href="https://zackaryliu.github.io/post/triton-chu-ti-yan/">
+        </link>
+        <updated>2025-10-26T14:30:58.000Z</updated>
+        <summary type="html"><![CDATA[<h2 id="about-triton">About Triton</h2>
+<blockquote>
+<p><a href="https://github.com/triton-lang/triton">Triton</a> is a language and compiler for parallel programming. It aims to provide a Python-based programming environment for productively writing custom DNN compute kernels capable of running at maximal throughput on modern GPU hardware.</p>
+</blockquote>
+<h2 id="安装开发包">安装开发包</h2>
+<pre><code class="language-c">git clone https://github.com/triton-lang/triton.git
+cd triton
+
+pip install -r python/requirements.txt # build-time dependencies
+pip install -e .
+</code></pre>
+<ul>
+<li>
+<p>使用 pip 前记得创建一个专属 venv，避免影响到系统全局 python 环境</p>
+</li>
+<li>
+<p>如 PC 内存较小，默认 install -e 会导致 OOM，建议限制 Job 数量，如<code>MAX_JOBS=8 pip install -e .</code></p>
+</li>
+</ul>
+<h2 id="运行-sample">运行 Sample</h2>
+<pre><code class="language-c">python python/tutorials/01-vector-add.py
+</code></pre>
+<ul>
+<li>
+<p>依赖包涉及<code>torch</code>, <code>numpy</code>, <code>matplotlib</code>,<code>pandas</code>等</p>
+</li>
+<li>
+<p>pip 网络问题安装失败时，记得添加<code>nameserver 8.8.8.8</code>到<code>/etc/resover.conf</code></p>
+</li>
+</ul>
+<h3 id="运行结果">运行结果</h3>
+<pre><code class="language-c">tensor([1.3713, 1.3076, 0.4940,  ..., 0.4705, 1.6737, 1.6400], device='cuda:0')
+tensor([1.3713, 1.3076, 0.4940,  ..., 0.4705, 1.6737, 1.6400], device='cuda:0')
+The maximum difference between torch and triton is 0.0
+vector-add-performance:
+           size      Triton       Torch
+0        4096.0   13.837838   13.963636
+1        8192.0   29.538462   36.141177
+2       16384.0   63.999998   60.235295
+3       32768.0  101.553721  100.310203
+4       65536.0  166.054047  164.939598
+5      131072.0  244.537310  244.537310
+6      262144.0  303.407414  301.546004
+7      524288.0  331.827848  323.368435
+8     1048576.0  360.417951  360.417951
+9     2097152.0  378.092307  379.003379
+10    4194304.0  386.358140  386.453091
+11    8388608.0  390.095241  390.095241
+12   16777216.0  392.798670  392.578071
+13   33554432.0  393.295877  393.215981
+14   67108864.0  393.692747  393.575769
+15  134217728.0  394.034837  393.674278
+</code></pre>
+]]></summary>
+        <content type="html"><![CDATA[<h2 id="about-triton">About Triton</h2>
+<blockquote>
+<p><a href="https://github.com/triton-lang/triton">Triton</a> is a language and compiler for parallel programming. It aims to provide a Python-based programming environment for productively writing custom DNN compute kernels capable of running at maximal throughput on modern GPU hardware.</p>
+</blockquote>
+<h2 id="安装开发包">安装开发包</h2>
+<pre><code class="language-c">git clone https://github.com/triton-lang/triton.git
+cd triton
+
+pip install -r python/requirements.txt # build-time dependencies
+pip install -e .
+</code></pre>
+<ul>
+<li>
+<p>使用 pip 前记得创建一个专属 venv，避免影响到系统全局 python 环境</p>
+</li>
+<li>
+<p>如 PC 内存较小，默认 install -e 会导致 OOM，建议限制 Job 数量，如<code>MAX_JOBS=8 pip install -e .</code></p>
+</li>
+</ul>
+<h2 id="运行-sample">运行 Sample</h2>
+<pre><code class="language-c">python python/tutorials/01-vector-add.py
+</code></pre>
+<ul>
+<li>
+<p>依赖包涉及<code>torch</code>, <code>numpy</code>, <code>matplotlib</code>,<code>pandas</code>等</p>
+</li>
+<li>
+<p>pip 网络问题安装失败时，记得添加<code>nameserver 8.8.8.8</code>到<code>/etc/resover.conf</code></p>
+</li>
+</ul>
+<h3 id="运行结果">运行结果</h3>
+<pre><code class="language-c">tensor([1.3713, 1.3076, 0.4940,  ..., 0.4705, 1.6737, 1.6400], device='cuda:0')
+tensor([1.3713, 1.3076, 0.4940,  ..., 0.4705, 1.6737, 1.6400], device='cuda:0')
+The maximum difference between torch and triton is 0.0
+vector-add-performance:
+           size      Triton       Torch
+0        4096.0   13.837838   13.963636
+1        8192.0   29.538462   36.141177
+2       16384.0   63.999998   60.235295
+3       32768.0  101.553721  100.310203
+4       65536.0  166.054047  164.939598
+5      131072.0  244.537310  244.537310
+6      262144.0  303.407414  301.546004
+7      524288.0  331.827848  323.368435
+8     1048576.0  360.417951  360.417951
+9     2097152.0  378.092307  379.003379
+10    4194304.0  386.358140  386.453091
+11    8388608.0  390.095241  390.095241
+12   16777216.0  392.798670  392.578071
+13   33554432.0  393.295877  393.215981
+14   67108864.0  393.692747  393.575769
+15  134217728.0  394.034837  393.674278
+</code></pre>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Mesa - Turnip For Android Build]]></title>
+        <id>https://zackaryliu.github.io/post/mesa-turnip-for-android-build/</id>
+        <link href="https://zackaryliu.github.io/post/mesa-turnip-for-android-build/">
+        </link>
+        <updated>2025-08-17T15:47:03.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Parallel Computing - CUDA 环境搭建 / 基于开源 Kernel Driver]]></title>
+        <id>https://zackaryliu.github.io/post/bing-xing-ji-suan-/</id>
+        <link href="https://zackaryliu.github.io/post/bing-xing-ji-suan-/">
+        </link>
+        <updated>2025-03-02T01:48:25.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Intel Discrete GPU - Memory - HMM / Device Pages]]></title>
+        <id>https://zackaryliu.github.io/post/intel-discrete-gpu-memory-hmm-device-pages/</id>
+        <link href="https://zackaryliu.github.io/post/intel-discrete-gpu-memory-hmm-device-pages/">
+        </link>
+        <updated>2025-01-05T16:04:29.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Intel Discrete GPU - Memory - Evict / Swap]]></title>
+        <id>https://zackaryliu.github.io/post/intel-discrete-gpu-memory-evict-swap/</id>
+        <link href="https://zackaryliu.github.io/post/intel-discrete-gpu-memory-evict-swap/">
+        </link>
+        <updated>2024-12-11T15:51:05.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Intel Discrete GPU - Memory - Migrate]]></title>
+        <id>https://zackaryliu.github.io/post/intel-discrete-gpu-memory-migrate/</id>
+        <link href="https://zackaryliu.github.io/post/intel-discrete-gpu-memory-migrate/">
+        </link>
+        <updated>2024-12-05T01:14:11.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Intel Discrete GPU - Memory - Map / Page Fault]]></title>
+        <id>https://zackaryliu.github.io/post/intel-discrete-gpu-memory-map-page-fault/</id>
+        <link href="https://zackaryliu.github.io/post/intel-discrete-gpu-memory-map-page-fault/">
+        </link>
+        <updated>2024-12-01T14:59:24.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Intel Discrete GPU - Memory - Alloc]]></title>
+        <id>https://zackaryliu.github.io/post/intel-discrete-gpu-memory-alloc/</id>
+        <link href="https://zackaryliu.github.io/post/intel-discrete-gpu-memory-alloc/">
+        </link>
+        <updated>2024-11-24T15:32:43.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Intel Discrete GPU - 开篇]]></title>
+        <id>https://zackaryliu.github.io/post/intel-discrete-gpu-kai-pian/</id>
+        <link href="https://zackaryliu.github.io/post/intel-discrete-gpu-kai-pian/">
+        </link>
+        <updated>2024-11-20T15:38:10.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Learning NutShell - Inorder - Software Architecture]]></title>
+        <id>https://zackaryliu.github.io/post/learning-nutshell-inorder-software-architecture/</id>
+        <link href="https://zackaryliu.github.io/post/learning-nutshell-inorder-software-architecture/">
+        </link>
+        <updated>2024-02-07T15:58:20.000Z</updated>
+    </entry>
+</feed>

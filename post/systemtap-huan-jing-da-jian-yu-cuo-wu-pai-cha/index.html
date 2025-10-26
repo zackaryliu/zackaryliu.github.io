@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>【 PERF 】systemtap 环境搭建与错误排查 | Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="Overview
+
+SystemTap provides free software (GPL) infrastructure to simplify the gathering of information about the runni..." />
+    <meta name="keywords" content="" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">【 PERF 】systemtap 环境搭建与错误排查</h2>
+            <div class="post-date">2022-04-01</div>
+            
+            <div class="post-content" v-pre>
+              <h2 id="overview">Overview</h2>
+<blockquote>
+<p>SystemTap provides free software (GPL) infrastructure to simplify the gathering of information about the running Linux system. This assists diagnosis of a performance or functional problem. SystemTap eliminates the need for the developer to go through the tedious and disruptive instrument, recompile, install, and reboot sequence that may be otherwise required to collect data.<br>
+SystemTap provides a simple command line interface and scripting language for writing instrumentation for a live running kernel plus user-space applications. We are publishing samples, as well as enlarging the internal &quot;tapset&quot; script library to aid reuse and abstraction.</p>
+</blockquote>
+<figure data-type="image" tabindex="1"><img src="https://zackaryliu.github.io/post-images/1655828629462.png" alt="" loading="lazy"></figure>
+<h2 id="工具安装">工具安装</h2>
+<hr>
+<h3 id="标准发行版">标准发行版</h3>
+<p>看自己的选择，发行版的的话本身用的是标准内核，推荐使用命令自动安装，系统会自动匹配适合自己系统的版本。<br>
+1、安装<code>systemtap</code>基础包与实时编译所需要的内核配置及头文件(与正在使用的内核一致)</p>
+<pre><code class="language-cpp">sudo apt-get install systemtap
+sudo apt-get install linux-headers-$(uname -r)
+</code></pre>
+<p>测试一下这部分的安装的正确性：</p>
+<pre><code class="language-cpp">sudo stap -e 'probe begin { printf(&quot;Hello, World!\n&quot;); exit() }'
+</code></pre>
+<p>如果能够成功的看到<code>Hello, World!</code>，是否有一分小激动。<br>
+但这，仅仅是开始使用这把利器迈出的一小步，如果要高级的调试内核，那还需要<code>debuginfo</code>的援助。<br>
+官方这么说：</p>
+<blockquote>
+<p>SystemTap needs information about the kernel in order to place instrumentation in it (in other words, probe it). This information also allows SystemTap to generate the code for the instrumentation.</p>
+</blockquote>
+<p>这部分安装可以这样弄：</p>
+<pre><code class="language-cpp">wget http://ddebs.ubuntu.com/pool/main/l/linux/linux-image-xxx.ddeb
+sudo dpkg -i linux-image-xxx.ddeb
+</code></pre>
+<p>自己去下载对应的调试辅助文件，版本信息需根据自己的系统确定。</p>
+<p>本部分参考：<br>
+<a href="https://sourceware.org/systemtap/SystemTap_Beginners_Guide/using-systemtap.html#using-setup">1、Using SystemTap, Installation and Setup</a><br>
+<a href="https://blog.jeffli.me/blog/2014/10/10/install-systemtap-in-ubuntu-14-dot-04/">2、Install SystemTap in Ubuntu</a></p>
+<h3 id="自行编译">自行编译</h3>
+<p>为什么要自行编译，如果跟随着内核前沿的脚本开发，也就是<code>latest kernel</code>的话，一般发行版的软件支持是跟不上进度的，所以既然内核使用的是最新，那么工具也要是最新才行。<br>
+首先要保证自己的内核支持以下配置。</p>
+<h4 id="内核配置">内核配置</h4>
+<pre><code>CONFIG_DEBUG_INFO
+CONFIG_KPROBES
+CONFIG_DEBUG_FS
+CONFIG_RELAY
+</code></pre>
+<p>克隆<code>systemtap</code>源码</p>
+<pre><code>git clone https://sourceware.org/git/systemtap.git
+</code></pre>
+<p>注意：编译源码前请确认所需依赖已安装，因为一旦编译出错了，可能需要重新<code>configure</code>再<code>make</code></p>
+<pre><code>sudo apt-get install libdw-dev
+sudo apt-get install gettext
+</code></pre>
+<p>开始编译，编译命令及步骤如下，</p>
+<pre><code>./configure
+make all -jN
+sudo make install
+</code></pre>
+<p>编译这部分可参考：<br>
+<a href="https://sourceware.org/git/?p=systemtap.git;a=blob_plain;f=README;hb=HEAD">Build your own systemtap</a></p>
+<h3 id="报错处理">报错处理</h3>
+<p>如果读者自行编译的工具发现无法正常运行，相信本小节能帮助您解决，需要注意的是，自行编译的工具也像发行版使用那样，该有的依赖还是要有，也就是<code>linux-headers</code>和<code>debuginfo</code>。<br>
+这一块出问题比较多，笔者在解决这块问题上也是费了一定的时间。<br>
+这两部分怎么弄，我们依次看来，</p>
+<h4 id="linux-headers">linux-headers</h4>
+<p>直接把内核使用的对应源码拷到了设备中，然后建立软链接，让系统能找到它。</p>
+<pre><code>ln -s /path/to/your/linux /lib/modules/`uname -r`/build
+</code></pre>
+<h4 id="debuginfo">debuginfo</h4>
+<p>把带有调试信息的<code>vmlinux</code>拷到<code>/lib/modules/</code>uname -r<code>/build</code>下。</p>
+<h4 id="编译正常但加载出错">编译正常但加载出错</h4>
+<h5 id="1error-module-version-mismatch-12-smp-preempt-tue-jan-11-104955-cst-2022-vs-10-smp-preempt-mon-jan-10-140323-cst-2022-release-5150-rc7">1）ERROR: module version mismatch (#12 SMP PREEMPT Tue Jan 11 10:49:55 CST 2022 vs #10 SMP PREEMPT Mon Jan 10 14:03:23 CST 2022), release 5.15.0-rc7</h5>
+<p>由于运行内核与编译内核编译时间不一致造成，可手动强制修改编译时依赖的源代码与运行内核相同，在下面的文件中定义，</p>
+<blockquote>
+<p>/lib/modules/5.15.0-rc7/build/include/generated/compile.h</p>
+</blockquote>
+<p>然后修改下<code>stp</code>源文件重新<code>stap</code>即可，触发重新编译。</p>
+<h5 id="2版本差异">2）版本差异</h5>
+<p>修改版本定义文件，在以下文件中定义，</p>
+<blockquote>
+<p>/lib/modules/5.15.0-rc7/build/include/generated/utsrelease.h</p>
+</blockquote>
+<p>然后参考上条重新编译即可。</p>
+<h4 id="补充">补充</h4>
+<p>今天再次搭建<code>systemtap</code>环境时，运行<code>hello world</code>就一直报错，开始时以为是版本出现了差异（内核版本高于最新的<code>stap</code>能够支持的版本），所以降低内核版本重新编译试了下，将<code>host</code>编译完的代码全部导入到虚拟环境中发现有以下报错，挣扎了几次错误依旧，挑了一下明显的报错如下，<br>
+<img src="https://zackaryliu.github.io/post-images/1655828646266.png" alt="" loading="lazy"><br>
+百思不得解，遂跟踪了下<code>stap</code>的源码，发现它的逻辑是，如果<code>vmalloc_node</code>在内核已经定义，那么<code>stap</code>中就不再重新定义，所以这里<code>stap</code>又定义了一遍就惹人怀疑，<br>
+相继找出，</p>
+<pre><code class="language-c">output_exportconf(s, o2, &quot;vmalloc_node&quot;, &quot;STAPCONF_VMALLOC_NODE&quot;);
+</code></pre>
+<p>进而找出这个方法的定义，</p>
+<pre><code class="language-c">void output_exportconf(systemtap_session&amp; s, ofstream&amp; o, const char *symbol,
+                     const char *deftrue)
+{
+  if (s.kernel_exports.find(symbol) != s.kernel_exports.end())
+    o &lt;&lt; &quot;#define &quot; &lt;&lt; deftrue &lt;&lt; &quot; 1&quot; &lt;&lt; endl;
+}
+</code></pre>
+<p>可以看出就是它将解析出宏定义，但为什么没有正确的解析出<code>vmalloc_node</code>呢？未解，继续跟进，<br>
+最终定位到，</p>
+<pre><code class="language-c">int
+systemtap_session::parse_kernel_exports ()
+{
+  string kernel_exports_file = kernel_build_tree + &quot;/Module.symvers&quot;;
+  struct stat st;
+  int rc = stat(kernel_exports_file.c_str(), &amp;st);
+  if (rc != 0)
+    {
+        clog &lt;&lt; _F(&quot;Checking \&quot;%s\&quot; failed with error: %s\nEnsure kernel development headers &amp; makefiles are installed&quot;,
+                   kernel_exports_file.c_str(), strerror(errno)) &lt;&lt; endl;
+	return rc;
+    }
+
+  ifstream kef (kernel_exports_file.c_str());
+  string line;
+  while (getline (kef, line))
+    {
+      vector&lt;string&gt; tokens;
+      tokenize (line, tokens, &quot;\t&quot;);
+      if (tokens.size() == 4 &amp;&amp;
+          tokens[2] == &quot;vmlinux&quot; &amp;&amp;
+          tokens[3].substr(0,13) == string(&quot;EXPORT_SYMBOL&quot;))
+        kernel_exports.insert (tokens[1]);
+      // RHEL4 Module.symvers file only has 3 tokens.  No
+      // 'EXPORT_SYMBOL' token at the end of the line.
+      else if (tokens.size() == 3 &amp;&amp; tokens[2] == &quot;vmlinux&quot;)
+        kernel_exports.insert (tokens[1]);
+    }
+  if (verbose &gt; 2)
+    clog &lt;&lt; _NF(&quot;Parsed kernel \&quot;%s\&quot;, containing one vmlinux export&quot;,
+                &quot;Parsed kernel \&quot;%s\&quot;, containing %zu vmlinux exports&quot;,
+                kernel_exports.size(), kernel_exports_file.c_str(),
+                kernel_exports.size()) &lt;&lt; endl;
+
+  kef.close();
+  return 0;
+}
+
+</code></pre>
+<p>所以答案就清晰明了了，解析的依据就是<code>Module.symvers</code>。<br>
+当我去查看这个最后种种铁证均指向的嫌疑文件<code>Module.symvers</code>时，它自爆了，文件内容竟然是空白！！</p>
+<p>来解释下发生这一幕的原由，因为我设备中的内核环境均在在宿主机中拷贝过来的，但当<code>stap</code>运行时，会编译<code>ko</code>，过程中会涉及到源码<code>scripts</code>下一些工具的使用，而现在这些工具是在宿主机中编译的，平台不一致，所以运行会失败，我自作聪明的<code>make</code>了下，待工具重新编译后停掉，并没有完成完全编译，所以<code>Module.symvers</code>被意外清空掉了。</p>
+<p>最后，建议在构建设备中内核源码环境时，最好是克隆一份同版本的源码，并在设备中完全编译，这样在使用起来就不会出现平台不符的问题。</p>
+
+            </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/mm-liao-liao-compaction-yu-page-migrate/">
+                  <h3 class="post-title">
+                    【 MM 】聊聊 Compaction 与 Page migrate
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

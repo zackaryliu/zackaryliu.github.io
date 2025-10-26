@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>Triton 初体验 | Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="About Triton
+
+Triton is a language and compiler for parallel programming. It aims to provide a Python-based programming ..." />
+    <meta name="keywords" content="triton" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">Triton 初体验</h2>
+            <div class="post-date">2025-10-26</div>
+            
+            <div class="post-content" v-pre>
+              <h2 id="about-triton">About Triton</h2>
+<blockquote>
+<p><a href="https://github.com/triton-lang/triton">Triton</a> is a language and compiler for parallel programming. It aims to provide a Python-based programming environment for productively writing custom DNN compute kernels capable of running at maximal throughput on modern GPU hardware.</p>
+</blockquote>
+<h2 id="安装开发包">安装开发包</h2>
+<pre><code class="language-c">git clone https://github.com/triton-lang/triton.git
+cd triton
+
+pip install -r python/requirements.txt # build-time dependencies
+pip install -e .
+</code></pre>
+<ul>
+<li>
+<p>使用 pip 前记得创建一个专属 venv，避免影响到系统全局 python 环境</p>
+</li>
+<li>
+<p>如 PC 内存较小，默认 install -e 会导致 OOM，建议限制 Job 数量，如<code>MAX_JOBS=8 pip install -e .</code></p>
+</li>
+</ul>
+<h2 id="运行-sample">运行 Sample</h2>
+<pre><code class="language-c">python python/tutorials/01-vector-add.py
+</code></pre>
+<ul>
+<li>
+<p>依赖包涉及<code>torch</code>, <code>numpy</code>, <code>matplotlib</code>,<code>pandas</code>等</p>
+</li>
+<li>
+<p>pip 网络问题安装失败时，记得添加<code>nameserver 8.8.8.8</code>到<code>/etc/resover.conf</code></p>
+</li>
+</ul>
+<h3 id="运行结果">运行结果</h3>
+<pre><code class="language-c">tensor([1.3713, 1.3076, 0.4940,  ..., 0.4705, 1.6737, 1.6400], device='cuda:0')
+tensor([1.3713, 1.3076, 0.4940,  ..., 0.4705, 1.6737, 1.6400], device='cuda:0')
+The maximum difference between torch and triton is 0.0
+vector-add-performance:
+           size      Triton       Torch
+0        4096.0   13.837838   13.963636
+1        8192.0   29.538462   36.141177
+2       16384.0   63.999998   60.235295
+3       32768.0  101.553721  100.310203
+4       65536.0  166.054047  164.939598
+5      131072.0  244.537310  244.537310
+6      262144.0  303.407414  301.546004
+7      524288.0  331.827848  323.368435
+8     1048576.0  360.417951  360.417951
+9     2097152.0  378.092307  379.003379
+10    4194304.0  386.358140  386.453091
+11    8388608.0  390.095241  390.095241
+12   16777216.0  392.798670  392.578071
+13   33554432.0  393.295877  393.215981
+14   67108864.0  393.692747  393.575769
+15  134217728.0  394.034837  393.674278
+</code></pre>
+<!-- more -->
+
+            </div>
+            
+              <div class="tag-container">
+                
+                  <a href="https://zackaryliu.github.io/tag/ZLYrHoCxJ_/" class="tag">
+                    triton
+                  </a>
+                
+              </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/mesa-turnip-for-android-build/">
+                  <h3 class="post-title">
+                    Mesa - Turnip For Android Build
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>Intel Discrete GPU - Memory - HMM / Device Pages | Deep Kernel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://zackaryliu.github.io/favicon.ico?v=1761489149685">
+<link rel="stylesheet" href="https://zackaryliu.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="HMM 即 Heterogeneous Memory Management，其主要为并行计算加速场景提供系统侧支持，以 GPGPU 通过并行计算场景为例的话，因为 GPU 设备中具备独立显存，在 GPU 执行计算的过程中将其所需数据存储至独..." />
+    <meta name="keywords" content="intel gpu" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://zackaryliu.github.io">
+        <img src="https://zackaryliu.github.io/images/avatar.png?v=1761489149685" class="site-logo">
+        <h1 class="site-title">Deep Kernel</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新
+    </div>
+    <div class="site-footer">
+      去博客园小站瞧瞧 <a href="https://www.cnblogs.com/zackary" target="_blank">Go</a> | <a class="rss" href="https://zackaryliu.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">Intel Discrete GPU - Memory - HMM / Device Pages</h2>
+            <div class="post-date">2025-01-06</div>
+            
+            <div class="post-content" v-pre>
+              <p>HMM 即 Heterogeneous Memory Management，其主要为并行计算加速场景提供系统侧支持，以 GPGPU 通过并行计算场景为例的话，因为 GPU 设备中具备独立显存，在 GPU 执行计算的过程中将其所需数据存储至独立显存的话，GPU 将会发挥更加出色的性能；</p>
+<p>并行计算的场景中涉及到 CPU 与 GPU 的频繁交互，为了能够让 GPU 能够发挥了优越的性能，在 CPU 准备好待计算的数据后，就需要在 GPU 启动计算之前将这些数据所占用的内存迁移至 GPU 侧，等待计算完成之后，在 CPU 访问计算结果时，这些结果数据还需要再次迁移至系统内存供 CPU 访问；</p>
+<p>这期间在 CPU 与 GPU 侧的内存迁移动作，即为本次所介绍的 HMM 与 Migrate Device 模块共同来实现；</p>
+<p>并行计算框架常见的有几种，分别有 CUDA / SYCL / ROCm，SYCL 由 Khronos 组织主推且有 Intel 作为大力的支持者，其编程风格非常符合 C++ 风格，作为一个 C/C++ 开发者，个人是极力支持的，看好它日后的发展；</p>
+<p>插播一下，<a href="https://sycl.tech/playground">SYCL Tech</a> 提供了一个免费的编写、运行环境，是一个练习的好平台；</p>
+<p>即使并行计算框架有多种，但对于系统底层的能力来说，只有 HMM 提供支撑即可；现在我们以 SYCL 为例，看下它是如何借助底层的能力完成并行计算的；</p>
+<p>SYCL 中操作内存所使用的方式主要有 Buffer / USM (Unified Shared Memory) 两种，关于这两种方式的介绍，可以通过 codeplay github 中所提供的 PDF 了解下，</p>
+<ul>
+<li>
+<p>About Buffer - <a href="https://github.com/codeplaysoftware/syclacademy/blob/main/Lesson_Materials/Managing_Data/Managing_Data.pdf">Link</a></p>
+</li>
+<li>
+<p>About USM - <a href="https://github.com/codeplaysoftware/syclacademy/blob/main/Lesson_Materials/Using_USM/Using_USM.pdf">Link</a></p>
+</li>
+</ul>
+<p>USM 的使用场景中，可能涉及到同一份物理内存分别映射到 CPU / GPU 侧，也可能是与 Buffer 场景类似，在 CPU / GPU 侧分别有一份数据存储，</p>
+<figure data-type="image" tabindex="1"><img src="https://zackaryliu.github.io/post-images/intel_gpu/hmm/usm_mem_types.png" alt="" loading="lazy"></figure>
+<p>而我们将针对左侧这种场景较深入地解读下底层系统的能力支撑；</p>
+<p>在 Linux 内存管理中，每个 Node 内存会按 Zone 来划分，常见的 Zone 有 ZONE_DMA / ZONE_NORMAL / ZONE_MOVABLE 等，除这些以外，还有一类在移动设备中不常见的 ZONE_DEVICE 类型，而 HMM 所涉及的技术领域中，ZONE_DEVICE 就是至关重要的一点；</p>
+<p>当 GPU 初始化并行计算能力时，会通过<code>devm_memremap_pages</code>将独立显存中规划的一段空间映射至 CPU 侧，按照系统中的默认页面粒度将这段独立显存空间通过 pages 进行 pfn 映射，这个映射也是一种内存 hotplug，所添加的 pages 会接入到 VMEMMAP 中，并划分至 ZONE_DEVICE 中，通过<code>/proc/zoneinfo</code>能够得知所划分的页面数；</p>
+<figure data-type="image" tabindex="2"><img src="https://zackaryliu.github.io/post-images/intel_gpu/hmm/device_zone_span.png" alt="" loading="lazy"></figure>
+<p>需要注意的是，这些 ZONE_DEVICE 中的 pages 不同普通内存页面，因为它们并不在 Buddy 的管理范围内，内存分配不涵盖这些页面；</p>
+<p>当内存在系统内存与独立显存间迁移时，一般通过 Migrate Device 所提供迁移框架中的几步来完成，它们是 migrate_vma_setup / migrate_vma_pages / migrate_vma_finalize，下面分别来看下每个接口的对应能力，</p>
+<ul>
+<li>
+<p>migrate_vma_setup()</p>
+<p>主要包含<code>migrate_vma_collect</code>和<code>migrate_vma_unmap</code>两步操作，</p>
+<p>其中<code>migrate_vma_collect</code>负责收集 vma migrate 范围所涉及的所有源 pfn，并将拿到的这些 pfn 存储至<code>migrate-&gt;src</code>，在这过程中涉及一个优化，将这个 page 对应到本进程的页表 entry 做成 swp 形式；</p>
+<p>随后<code>migrate_vma_unmap</code>先通过<code>folio_isolate_lru</code>将源 page 从 LRU 中取下，再通过<code>try_to_migrate</code>将页表对应 entry 做成 migrate entry，前提是这个 page 仍有该进程之外的 map，通过<code>folio_mapped</code>判断，所以上面提到的优化就是针对这里做的，因为<code>try_to_migrate</code>一旦介入将涉及到反向映射的查找，较消耗性能；</p>
+<p>而 migrate 失败的 entry ，先是在 src_pfns 中清除掉<code>MIGRATE_PFN_MIGRATE</code>标识，然后将其恢复成原始的 pte，通过<code>remove_migration_ptes(folio, folio, 0)</code>完成 ，需要注意 remove ptes 的 src/dst 参数均为 src folio，所以这个过程中只涉及 migrate entry，还不是 device entry；</p>
+</li>
+<li>
+<p>migrate_vma_pages()</p>
+<p>移动一些 page 相关的 meta data，如果原始 vma 相关的页表尚未建立映射，那么将通过<code>migrate_vma_insert_page</code>建立起与 device page 的对应关系；</p>
+</li>
+<li>
+<p>migrate_vma_finalize()</p>
+<p>这时作为 migrate 的收尾工作，将 migrate entry 移除并通过<code>remove_migration_ptes(src, dst, 0)</code>完成页表对 dst entry 映射，这时的 dst entry 即为 device entry；</p>
+</li>
+</ul>
+<p>结合这些 Migrate 能力接口，再加上页面内容的传输能力，即可完成系统内存与独立显存之间的数据迁移；</p>
+<p>以 SYCL 的内存形式 Buffer / USM 为例的话，这个数据迁移操作会涉及到以下几种场景，</p>
+<ul>
+<li>
+<p>Buffer 使用时的主动迁移，从系统内存迁至独立显存</p>
+<p>当 SYCL Buffer access 调用时，数据内存将会被触发，AMD 独立显卡内核驱动中提供了一个这样的完整能力接口<code>svm_migrate_vma_to_vram</code>，可综合以上所述能力接口，是一个好的参考案例；</p>
+</li>
+<li>
+<p>USM 使用时的被动迁移，从系统内存迁至独立显存</p>
+<p>所谓被动触发，实际意味着数据的迁移动作是由 GPU 访存时缺页触发，参考 Intel Xe 独立显卡内核驱动中的<code>handle_pagefault</code>实现，缺页流程继而调用到<code>xe_bo_migrate</code>时数据内存将被真正迁移；</p>
+</li>
+<li>
+<p>当 CPU 访问已迁移数据时触发被动迁移，从独立显存迁至系统内存</p>
+<p>上面 migrate vma 时有提到当内存迁至独立显存后，进程中对应的内存页面所对应的页表项会被替换为 swap entry，这个 swap 为特殊的 device swap entry，当前 CPU 访问到这些 entry 后会触发 fault 并涉及到以下流程，</p>
+<pre><code class="language-c++">vm_fault_t do_swap_page(struct vm_fault *vmf)
+{
+    ...
+    if (is_device_exclusive_entry(entry)) {
+        vmf-&gt;page = pfn_swap_entry_to_page(entry);
+        ret = remove_device_exclusive_entry(vmf);
+    } else if (is_device_private_entry(entry)) {
+        ...
+        vmf-&gt;page = pfn_swap_entry_to_page(entry);
+        ...
+        ret = vmf-&gt;page-&gt;pgmap-&gt;ops-&gt;migrate_to_ram(vmf);
+        put_page(vmf-&gt;page);
+    }
+    ...
+}
+</code></pre>
+<p>如果是普通的 device entry，则会调用到指定 device 实现的<code>migrate_to_ram</code>回调，与上述数据内存迁至独立显存流程类似，将数据内存迁回到系统内存中；</p>
+<p>如果是 device exclusive entry，说明当前这种使用场景很有可能是 CPU / GPU 均映射到同一块物理内存的场景，而且 GPU 此时是想独占访问权，并通过<code>make_readable_device_exclusive_entry/make_writable_device_exclusive_entry</code>标记过，如果此时 CPU 想要访问内存，将会通过上面 swap 流程中的<code>remove_device_exclusive_entry</code>通知到 GPU 侧此时独占环境已无；</p>
+<p>根据官方文档介绍，独立环境一般用于 GPU 访问系统内存且是 atomic 操作环境下；</p>
+<blockquote>
+<p>Some devices have features such as atomic PTE bits that can be used to implement atomic access to system memory.</p>
+</blockquote>
+</li>
+</ul>
+<p>TODO</p>
+<ul>
+<li>
+<p>在<code>migrate_vma_finalize</code>完成后，原页面是如何处理的，释放？</p>
+</li>
+<li>
+<p>USM 场景下 GPU 缺页并 migrate bo 时，并没有对 CPU 侧页表做 device entry，</p>
+</li>
+</ul>
+<p><strong>文档引用</strong></p>
+<ul>
+<li>Linux doc - <a href="https://www.kernel.org/doc/html/latest/mm/hmm.html">Heterogeneous Memory Management (HMM)</a></li>
+</ul>
+
+            </div>
+            
+              <div class="tag-container">
+                
+                  <a href="https://zackaryliu.github.io/tag/f3ZAkt3X-c/" class="tag">
+                    intel gpu
+                  </a>
+                
+              </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://zackaryliu.github.io/post/intel-discrete-gpu-memory-evict-swap/">
+                  <h3 class="post-title">
+                    Intel Discrete GPU - Memory - Evict / Swap
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+
+
+  </body>
+</html>
