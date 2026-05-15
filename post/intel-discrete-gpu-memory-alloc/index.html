@@ -1,0 +1,633 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=0, width=device-width" />
+    <meta name="renderer" content="webkit">
+    <meta name="format-detection" content="telephone=no, email=no, address=no">
+
+    <meta name="generator" content="Gridea Pro 1.1.1">
+    <title>Intel Discrete GPU - Memory - Alloc | Deep Kernel</title>
+
+    
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#292a2d" media="(prefers-color-scheme: dark)">
+
+    
+    <link rel="shortcut icon" href="/media/images/favicon.ico">
+<link rel="stylesheet" href="/styles/main.min.css">
+
+    
+    <style>:root{--accent-color:#28df99;}</style>
+    
+
+    <script>
+    // 自动为所有 target="_blank" 的链接添加 rel="noopener noreferrer"
+    document.addEventListener('DOMContentLoaded', function() {
+        var links = document.querySelectorAll('a[target="_blank"]');
+        links.forEach(function(link) {
+            var rel = link.getAttribute('rel') || '';
+            if (rel.indexOf('noopener') === -1) {
+                rel += ' noopener';
+            }
+            if (rel.indexOf('noreferrer') === -1) {
+                rel += ' noreferrer';
+            }
+            link.setAttribute('rel', rel.trim());
+        });
+    });
+</script>
+
+
+
+    <script>
+    // declaraction of document.ready() function.
+    (function () {
+        var ie = !!(window.attachEvent && !window.opera);
+        var wk = /webkit\/(\d+)/i.test(navigator.userAgent) && (RegExp.$1 < 525);
+        var fn = [];
+        var run = function () {
+            for (var i = 0; i < fn.length; i++) fn[i]();
+        };
+        var d = document;
+        d.ready = function (f) {
+            if (!ie && !wk && d.addEventListener)
+                return d.addEventListener('DOMContentLoaded', f, false);
+            if (fn.push(f) > 1) return;
+            if (ie)
+                (function () {
+                    try {
+                        d.documentElement.doScroll('left');
+                        run();
+                    } catch (err) {
+                        setTimeout(arguments.callee, 0);
+                    }
+                })();
+            else if (wk)
+                var t = setInterval(function () {
+                    if (/^(loaded|complete)$/.test(d.readyState))
+                        clearInterval(t), run();
+                }, 0);
+        };
+    })();
+
+
+    document.ready(
+        function () {
+            var _Blog = window._Blog || {};
+
+            const getSystemTheme = () => {
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    return 'dark';
+                }
+                return 'light';
+            };
+
+            const configDefault = 'dark';
+            const currentTheme = window.localStorage && window.localStorage.getItem('theme');
+            const initialTheme = currentTheme || configDefault || getSystemTheme();
+            const isDark = initialTheme === 'dark';
+
+            const updateButtons = (dark) => {
+                const sunBtn = document.getElementById("theme-toggle-sun");
+                const moonBtn = document.getElementById("theme-toggle-moon");
+                const mobileSunBtn = document.getElementById("mobile-theme-toggle-sun");
+                const mobileMoonBtn = document.getElementById("mobile-theme-toggle-moon");
+
+                if (dark) {
+                    if (sunBtn) sunBtn.style.display = 'none';
+                    if (moonBtn) moonBtn.style.display = 'inline-block';
+                    if (mobileSunBtn) mobileSunBtn.style.display = 'none';
+                    if (mobileMoonBtn) mobileMoonBtn.style.display = 'inline-block';
+                } else {
+                    if (sunBtn) sunBtn.style.display = 'inline-block';
+                    if (moonBtn) moonBtn.style.display = 'none';
+                    if (mobileSunBtn) mobileSunBtn.style.display = 'inline-block';
+                    if (mobileMoonBtn) mobileMoonBtn.style.display = 'none';
+                }
+            };
+
+            const updateThemeColor = (dark) => {
+                const themeColor = dark ? '#292a2d' : '#ffffff';
+                const metaTags = document.querySelectorAll('meta[name="theme-color"]');
+                if (metaTags.length > 0) {
+                    // 保留第一个，移除其他的，避免重复
+                    for (let i = 1; i < metaTags.length; i++) {
+                        metaTags[i].remove();
+                    }
+                    metaTags[0].setAttribute('content', themeColor);
+                    metaTags[0].removeAttribute('media');
+                } else {
+                    const meta = document.createElement('meta');
+                    meta.name = 'theme-color';
+                    meta.content = themeColor;
+                    document.head.appendChild(meta);
+                }
+            };
+
+            const applyTheme = (dark) => {
+                const body = document.getElementsByTagName('body')[0];
+                if (dark) {
+                    body.classList.add('dark-theme');
+                } else {
+                    body.classList.remove('dark-theme');
+                }
+                updateButtons(dark);
+                updateThemeColor(dark);
+            };
+
+            // Initial application
+            applyTheme(isDark);
+            if (!currentTheme) {
+                window.localStorage && window.localStorage.setItem('theme', initialTheme);
+            }
+
+            _Blog.toggleTheme = function () {
+                const toggleFunc = (e) => {
+                    // Prevent bubbling if needed, though buttons are distinct now
+                    if (e) e.stopPropagation();
+
+                    const body = document.getElementsByTagName('body')[0];
+                    const isCurrentlyDark = body.classList.contains('dark-theme');
+
+                    if (isCurrentlyDark) {
+                        body.classList.remove('dark-theme');
+                        updateButtons(false);
+                        window.localStorage && window.localStorage.setItem('theme', 'light');
+                    } else {
+                        body.classList.add('dark-theme');
+                        updateButtons(true);
+                        window.localStorage && window.localStorage.setItem('theme', 'dark');
+                    }
+                };
+
+                const sunBtn = document.getElementById("theme-toggle-sun");
+                const moonBtn = document.getElementById("theme-toggle-moon");
+                const mobileSunBtn = document.getElementById("mobile-theme-toggle-sun");
+                const mobileMoonBtn = document.getElementById("mobile-theme-toggle-moon");
+
+                if (sunBtn) sunBtn.addEventListener('click', toggleFunc);
+                if (moonBtn) moonBtn.addEventListener('click', toggleFunc);
+                if (mobileSunBtn) mobileSunBtn.addEventListener('click', toggleFunc);
+                if (mobileMoonBtn) mobileMoonBtn.addEventListener('click', toggleFunc);
+            };
+            _Blog.toggleTheme();
+
+            if (window.matchMedia && !configDefault) {
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+                    const newTheme = e.matches ? 'dark' : 'light';
+                    applyTheme(e.matches);
+                    window.localStorage && window.localStorage.setItem('theme', newTheme);
+                });
+            }
+        }
+    );
+</script>
+
+<script>
+    // Reading Progress Component
+    document.addEventListener('DOMContentLoaded', () => {
+        const progressValue = document.querySelector('.reading-value');
+        const progressCircle = document.querySelector('.progress-ring__circle');
+        const container = document.querySelector('.reading-progress-container');
+
+        // Exit if elements don't exist (e.g., not on a post page)
+        if (!progressValue || !progressCircle || !container) {
+            return;
+        }
+
+        // SVG Circle setup
+        const radius = progressCircle.r.baseVal.value;
+        const circumference = 2 * Math.PI * radius;
+
+        progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+        progressCircle.style.strokeDashoffset = circumference;
+
+        function setProgress(percent) {
+            const safePercent = Math.min(100, Math.max(0, percent));
+            progressValue.textContent = `${Math.round(safePercent)}%`;
+            const offset = circumference - (safePercent / 100) * circumference;
+            progressCircle.style.strokeDashoffset = offset;
+        }
+
+        function onScroll() {
+            const scrollTop = window.scrollY || document.documentElement.scrollTop;
+            const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+
+            if (scrollHeight <= 0) {
+                setProgress(0);
+                return;
+            }
+
+            const scrollPercent = (scrollTop / scrollHeight) * 100;
+            setProgress(scrollPercent);
+
+            // Show/Hide logic: Show if scrolled more than 100px
+            if (scrollTop > 100) {
+                container.classList.add('show');
+            } else {
+                container.classList.remove('show');
+            }
+        }
+
+        // Initialize
+        onScroll();
+
+        // Listen for scroll events
+        window.addEventListener('scroll', onScroll, { passive: true });
+
+        // Recalculate on resize
+        window.addEventListener('resize', onScroll);
+    });
+</script>
+
+
+
+
+    
+
+    
+<meta name="description" content="在应用使用 GPU 渲染一帧图像的过程中，需要向 GPU 传递 Vertex/Texture 数据信息，渲染完成后应用将得到一帧图像的数据信息，而这些数据信息的承载者便是通过显存，显存的术语通常被叫做 BO (Buffer Object)； 显存位置定义 先来了解一下几种描述显存存储位置的定义， XE_PL_SYSTEM GPU 映射系统内存的场景，一般用于显存回&amp;hellip;">
+<link rel="canonical" href="https://deepkernel.cn/post/intel-discrete-gpu-memory-alloc/">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"Intel Discrete GPU - Memory - Alloc","url":"https://deepkernel.cn/post/intel-discrete-gpu-memory-alloc/","description":"在应用使用 GPU 渲染一帧图像的过程中，需要向 GPU 传递 Vertex/Texture 数据信息，渲染完成后应用将得到一帧图像的数据信息，而这些数据信息的承载者便是通过显存，显存的术语通常被叫做 BO (Buffer Object)； 显存位置定义 先来了解一下几种描述显存存储位置的定义， XE_PL_SYSTEM GPU 映射系统内存的场景，一般用于显存回\u0026hellip;","datePublished":"2024-11-24T23:32:43+08:00","dateModified":"2026-05-15T23:22:34+08:00","author":{"@type":"Person","name":"Deep Kernel"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"/images/avatar.png"},"name":"Deep Kernel"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","item":"https://deepkernel.cn","name":"Deep Kernel","position":1},{"@type":"ListItem","item":"https://deepkernel.cn/post/intel-discrete-gpu-memory-alloc/","name":"Intel Discrete GPU - Memory - Alloc","position":2}]}</script>
+<meta property="og:title" content="Intel Discrete GPU - Memory - Alloc">
+<meta property="og:description" content="在应用使用 GPU 渲染一帧图像的过程中，需要向 GPU 传递 Vertex/Texture 数据信息，渲染完成后应用将得到一帧图像的数据信息，而这些数据信息的承载者便是通过显存，显存的术语通常被叫做 BO (Buffer Object)； 显存位置定义 先来了解一下几种描述显存存储位置的定义， XE_PL_SYSTEM GPU 映射系统内存的场景，一般用于显存回&amp;hellip;">
+<meta property="og:url" content="https://deepkernel.cn/post/intel-discrete-gpu-memory-alloc/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Deep Kernel">
+<meta property="og:image" content="/images/avatar.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:url" content="https://deepkernel.cn/post/intel-discrete-gpu-memory-alloc/">
+<meta name="twitter:title" content="Intel Discrete GPU - Memory - Alloc">
+<meta name="twitter:description" content="在应用使用 GPU 渲染一帧图像的过程中，需要向 GPU 传递 Vertex/Texture 数据信息，渲染完成后应用将得到一帧图像的数据信息，而这些数据信息的承载者便是通过显存，显存的术语通常被叫做 BO (Buffer Object)； 显存位置定义 先来了解一下几种描述显存存储位置的定义， XE_PL_SYSTEM GPU 映射系统内存的场景，一般用于显存回&amp;hellip;">
+<meta name="twitter:image" content="/images/avatar.png">
+</head>
+
+    <body>
+
+        <script>
+    (function () {
+        const getSystemTheme = () => {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                return 'dark';
+            }
+            return 'light';
+        };
+
+        const configDefault = 'dark';
+        const savedTheme = localStorage.getItem('theme');
+        const theme = savedTheme || configDefault || getSystemTheme();
+
+        if (theme === 'dark') {
+            document.body.classList.add('dark-theme');
+        }
+
+        if (!savedTheme) {
+            localStorage.setItem('theme', theme);
+        }
+    })();
+</script>
+<header class="mod-head">
+    <div class="mod-head__left">
+        <div class="mod-head__logo">
+            <a href="/">
+                
+                
+                    <img class="avatar" alt="avatar" src="/images/avatar.png">
+                
+            </a>
+        </div>
+    </div>
+
+    <div class="mod-head__right">
+        <span>
+            <button id="theme-toggle-sun" class="tiptap-button theme-toggle-sun" aria-label="Switch to dark mode">
+                <svg width="18" height="18" class="tiptap-button-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 1C12.5523 1 13 1.44772 13 2V4C13 4.55228 12.5523 5 12 5C11.4477 5 11 4.55228 11 4V2C11 1.44772 11.4477 1 12 1Z" fill="currentColor"></path>
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M7 12C7 9.23858 9.23858 7 12 7C14.7614 7 17 9.23858 17 12C17 14.7614 14.7614 17 12 17C9.23858 17 7 14.7614 7 12ZM12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9Z" fill="currentColor"></path>
+                    <path d="M13 20C13 19.4477 12.5523 19 12 19C11.4477 19 11 19.4477 11 20V22C11 22.5523 11.4477 23 12 23C12.5523 23 13 22.5523 13 22V20Z" fill="currentColor"></path>
+                    <path d="M4.22282 4.22289C4.61335 3.83236 5.24651 3.83236 5.63704 4.22289L7.04704 5.63289C7.43756 6.02341 7.43756 6.65658 7.04704 7.0471C6.65651 7.43762 6.02335 7.43762 5.63283 7.0471L4.22282 5.6371C3.8323 5.24658 3.8323 4.61341 4.22282 4.22289Z" fill="currentColor"></path>
+                    <path d="M18.367 16.9529C17.9765 16.5623 17.3433 16.5623 16.9528 16.9529C16.5623 17.3434 16.5623 17.9766 16.9528 18.3671L18.3628 19.7771C18.7533 20.1676 19.3865 20.1676 19.777 19.7771C20.1675 19.3866 20.1675 18.7534 19.777 18.3629L18.367 16.9529Z" fill="currentColor"></path>
+                    <path d="M1 12C1 11.4477 1.44772 11 2 11H4C4.55228 11 5 11.4477 5 12C5 12.5523 4.55228 13 4 13H2C1.44772 13 1 12.5523 1 12Z" fill="currentColor"></path>
+                    <path d="M20 11C19.4477 11 19 11.4477 19 12C19 12.5523 19.4477 13 20 13H22C22.5523 13 23 12.5523 23 12C23 11.4477 22.5523 11 22 11H20Z" fill="currentColor"></path>
+                    <path d="M7.04704 16.9529C7.43756 17.3434 7.43756 17.9766 7.04704 18.3671L5.63704 19.7771C5.24651 20.1676 4.61335 20.1676 4.22282 19.7771C3.8323 19.3866 3.8323 18.7534 4.22283 18.3629L5.63283 16.9529C6.02335 16.5623 6.65651 16.5623 7.04704 16.9529Z" fill="currentColor"></path>
+                    <path d="M19.777 5.6371C20.1675 5.24657 20.1675 4.61341 19.777 4.22289C19.3865 3.83236 18.7533 3.83236 18.3628 4.22289L16.9528 5.63289C16.5623 6.02341 16.5623 6.65658 16.9528 7.0471C17.3433 7.43762 17.9765 7.43762 18.367 7.0471L19.777 5.6371Z" fill="currentColor"></path>
+                </svg>
+            </button>
+            <button id="theme-toggle-moon" class="tiptap-button theme-toggle-moon" aria-label="Switch to light mode">
+                <svg width="18" height="18" class="tiptap-button-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C10.0222 2 8.08879 2.58649 6.4443 3.6853C4.79981 4.78412 3.51809 6.3459 2.76121 8.17317C2.00433 10.0004 1.8063 12.0111 2.19215 13.9509C2.578 15.8907 3.53041 17.6725 4.92894 19.0711C6.32746 20.4696 8.10929 21.422 10.0491 21.8079C11.9889 22.1937 13.9996 21.9957 15.8268 21.2388C17.6541 20.4819 19.2159 19.2002 20.3147 17.5557C21.4135 15.9112 22 13.9778 22 12C22 11.5955 21.7564 11.2309 21.3827 11.0761C21.009 10.9213 20.5789 11.0069 20.2929 11.2929C19.287 12.2988 17.9226 12.864 16.5 12.864C15.0774 12.864 13.713 12.2988 12.7071 11.2929C11.7012 10.287 11.136 8.92261 11.136 7.5C11.136 6.07739 11.7012 4.71304 12.7071 3.70711C12.9931 3.42111 13.0787 2.99099 12.9239 2.61732C12.7691 2.24364 12.4045 2 12 2ZM7.55544 5.34824C8.27036 4.87055 9.05353 4.51389 9.87357 4.28778C9.39271 5.27979 9.13604 6.37666 9.13604 7.5C9.13604 9.45304 9.91189 11.3261 11.2929 12.7071C12.6739 14.0881 14.547 14.864 16.5 14.864C17.6233 14.864 18.7202 14.6073 19.7122 14.1264C19.4861 14.9465 19.1295 15.7296 18.6518 16.4446C17.7727 17.7602 16.5233 18.7855 15.0615 19.391C13.5997 19.9965 11.9911 20.155 10.4393 19.8463C8.88743 19.5376 7.46197 18.7757 6.34315 17.6569C5.21447 16.538 4.4624 15.1126 4.15372 13.5607C3.84504 12.0089 4.00347 10.4003 4.60897 8.93853C5.21447 7.47672 6.23985 6.22729 7.55544 5.34824Z" fill="currentColor"></path>
+                    <path d="M19 2C19.5523 2 20 2.44772 20 3V4H21C21.5523 4 22 4.44772 22 5C22 5.55228 21.5523 6 21 6H20V7C20 7.55228 19.5523 8 19 8C18.4477 8 18 7.55228 18 7V6H17C16.4477 6 16 5.55228 16 5C16 4.44772 16.4477 4 17 4H18V3C18 2.44772 18.4477 2 19 2Z" fill="currentColor"></path>
+                </svg>
+            </button>
+        </span>
+    </div>
+</header>
+<!-- <a href="#" id="back-to-top" style="display: inline;"> ^ </a> -->
+
+            <article class="mod-post mod-post__type-post">
+                <header>
+                    <h1 class="mod-post__title">
+                        Intel Discrete GPU - Memory - Alloc
+                    </h1>
+                </header>
+
+                <div class="mod-post__meta">
+                    <time datetime="2024-11-24">
+                        2024-11-24
+                    </time> • 10 分钟阅读 •
+                        
+                            <a href="/tag/intel gpu/">
+                                intel gpu
+                            </a>
+                            
+                                    
+                </div>
+
+
+
+                <div class="mod-post__entry wzulli">
+                    
+                            <p>在应用使用 GPU 渲染一帧图像的过程中，需要向 GPU 传递 Vertex/Texture 数据信息，渲染完成后应用将得到一帧图像的数据信息，而这些数据信息的承载者便是通过显存，显存的术语通常被叫做 BO (Buffer Object)；</p>
+<h2 id="heading">显存位置定义</h2>
+<p>先来了解一下几种描述显存存储位置的定义，</p>
+<ul>
+<li>
+<p><strong>XE_PL_SYSTEM</strong></p>
+<ul>
+<li>GPU 映射系统内存的场景，一般用于显存回收时暂存的场景，Xe 驱动称其为 System cache，这里的内存由 shmem 分配，系统可随时回收</li>
+</ul>
+</li>
+<li>
+<p><strong>XE_PL_TT</strong></p>
+<ul>
+<li>GPU 映射系统内存的场景，这里的系统内存由<code>ttm_pool</code>所承载，系统不可直接回收</li>
+</ul>
+</li>
+<li>
+<p><strong>XE_PL_VRAM0</strong></p>
+</li>
+<li>
+<p><strong>XE_PL_VRAM1</strong></p>
+<ul>
+<li>GPU 映射独立显存的场景</li>
+</ul>
+</li>
+<li>
+<p><strong>XE_PL_STOLEN</strong></p>
+<ul>
+<li>与 VRAM 链路基本相同，一般代表从独立显存中预留一块空间给到 Display 使用</li>
+</ul>
+</li>
+</ul>
+<p><img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/sram_vram.png" alt="" /></p>
+<h2 id="heading-1">显存分配流程</h2>
+<p>以上介绍了 BO 可能存在的三种存储位置，实际上 BO 期望开辟的位置是由用户态驱动所指定，内核在 BO 创建时会借助<code>__xe_bo_placement_for_flags</code>来解析用户的请求。这个位置并非指定，它可以是多个，依照更佳适合 BO 存在的位置传递到内核。</p>
+<p>用户期望 BO 开辟的位置最终会存储在<code>bo-&gt;placements</code>中，在当前 Xe 驱动中，期望开辟的位置最多有可以有三种，通过<code>XE_BO_MAX_PLACEMENTS</code>指定。</p>
+<p>显存分配的入口为<code>XE_GEM_CREATE</code>，核心函数是<code>ttm_bo_validate</code>，它的职责不仅仅是起到显存分配作用，如它的命名一样，它用来核对当前 BO 的所在位置是否与预期<code>placements</code>匹配，否则将可能会涉及到显存的分配、迁移。</p>
+<p>显存初次分配时是通过<code>ttm_bo_init_reserved</code>来实现的，完成<code>xe_bo</code>结构的初始化后会通过刚提及的核心函数<code>ttm_bo_validate</code>验证显存开辟位置，它通过一些逻辑比较<code>bo-&gt;resource</code>与<code>placement</code>是否匹配，否则将通过<code>ttm_bo_alloc_resource</code>分配资源，继而通过<code>ttm_bo_handle_move_mem</code>做迁移。</p>
+<p>起初这里的流程真是把我绕晕，为什么显存的分配的流程要涉及 validate 和 move ？怎么不是简简单单的 alloc 呢。<br />
+后面再以全局视角来看这里的话，是蕴藏着开发者的智慧在里面的。因为<code>ttm_bo_validate</code>在显存的 Alloc / Evict / Swap 等均有调用，它是一个通用接口。</p>
+<p>在显存的初次分配时，<code>bo-&gt;resource</code>是不存在的，所以 validate 中的<code>ttm_resource_compatible</code>检查一定不符合。我们假设用户期望的显存开辟位置是 VRAM，那么显存的分配将会在<code>ttm_bo_alloc_resource</code>中完成，独显的内存分配是通过 DRM BUDDY 机制实现，分配的函数为<code>drm_buddy_alloc_blocks</code>，分配完成后会涉及 move 函数的调用，这里要注意的是，显存初次分配时并不会涉及实际的 move 操作，仅会调用<code>ttm_bo_move_null</code>来更新<code>bo-&gt;resource</code>，这时 resource 将代表显存的实际存在位置了，后续的 Evict / Swap 操作将借助它来进一步操作。</p>
+<p>如果用户期望的显存开辟位置是 SYSTEM，显存的分配流程又是什么样呢？<br />
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/validate_move.png" alt="" /></p>
+<ul>
+<li>
+<p>VRAM 类型显存通过 drm_buddy 在独显空间进行分配</p>
+</li>
+<li>
+<p>TT 类型显存在系统内存中分配是通过<code>ttm_tt_create</code>实现，它的分配请求转达到<code>ttm_pool</code>，内部再借助<code>alloc_pages</code>或<code>dma_alloc</code>申请系统内存资源</p>
+</li>
+</ul>
+<h3 id="-drm-buddy">关于 DRM_BUDDY</h3>
+<p>可以像内存子系统 Buddy 内存管理一样理解 Drm Buddy，它能够按照 order 管理 Pages，也能够 Split / Merge；</p>
+<p>区别比较大的点是，</p>
+<ul>
+<li>Drm Buddy 能够支持的 order 比较大 </li>
+</ul>
+<pre><code class="language-c++">/* Order-zero must be at least SZ_4K */
+#define DRM_BUDDY_MAX_ORDER (63 - 12)
+</code></pre>
+<ul>
+<li>可以支持指定 PA 段的方式分配显存</li>
+</ul>
+<p>一段 Pages 的分配状态在 Drm Buddy 通过<code>drm_buddy_block</code>来管理，其中<code>header</code>成员各个字段的定义如下，<br />
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/buddy_header.png" alt="" /></p>
+<ul>
+<li><code>11, 10</code>指明当前 block 是否空闲、是否已被 Split</li>
+<li><code>5, 0</code>指明当前 block 对就的 order 值</li>
+</ul>
+<h4 id="heading-2">初始化</h4>
+<p>核心接口 - <code>drm_buddy_init</code></p>
+<p>假如独显的内存大小是 4G，那么 drm buddy 初始化时 max_order 为 20，</p>
+<pre><code class="language-c++">mm-&gt;max_order = ilog2(size) - ilog2(chunk_size);
+</code></pre>
+<p>每个 order 均搭配有一个 Free Pages List，</p>
+<pre><code class="language-c++">mm-&gt;free_list = kmalloc_array(mm-&gt;max_order + 1,
+                sizeof(struct list_head), GFP_KERNEL);
+</code></pre>
+<p>除了上述的 free_list 关联空闲 Pages 外，Drm Buddy 还提供了一个 roots 链表，记录 Buddy 初始化完成时的 block 信息，</p>
+<pre><code class="language-c++">mm-&gt;n_roots = hweight64(size);
+mm-&gt;roots = kmalloc_array(mm-&gt;n_roots,
+            sizeof(struct drm_buddy_block *), GFP_KERNEL);
+</code></pre>
+<p>假如独显的内存大小是 6G，基础页面大小为 4K，初始化时将通过一个 order 20 的 4G Block 和一个 order 19 的 2G Block 关联完整的独显空间，这两个 Block 都将串联至 roots 中。</p>
+<h4 id="heading-3">内存分配</h4>
+<p>核心接口 - <code>drm_buddy_alloc_blocks</code></p>
+<p>Block 管理策略<br />
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/order.png" alt="" /></p>
+<ul>
+<li>优化从高地址处获取符合要求的 Order Block；</li>
+<li>被拆分的 Block 会从对应的 Order List 上摘除，但 Block 结构并不会被释放，它仍要通过 Left / Right 指针来串联子级 Block，便于其它流程中找到相邻的 Buddy Block 或进行 Merge 操作；</li>
+</ul>
+<p>大致流程</p>
+<p><img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/buddy_alloc.png" alt="" /></p>
+<ul>
+<li>常规显存分配场景下，会根据所请求的 Size 计算出目标 Order，如果 Free List 能够满足，则直接获取；</li>
+<li>如果独立显存有压力，会尝试从较小的 Order 聚合出满足<code>min_order</code>要求的 Block；</li>
+<li>最终得到的 Blocks 可能会因为 Min Order 对齐等要求，实际得到的 Size 要比期望分配的 Size 要大，往往需求进行一步 Trim 操作；</li>
+<li>TODO: alloc pa &amp; try harder</li>
+</ul>
+<h4 id="heading-4">内存释放</h4>
+<p>核心接口 - <code>drm_buddy_free_list</code></p>
+<p>大致流程<br />
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/buddy_free.png" alt="" /></p>
+<ul>
+<li>当前用户触发独立显存释放时，会将 Block 以 Objects 链表的形式传递至释放接口，随后 Buddy 依次遍历它们；</li>
+<li>通过 Block 找到对应 Buddy，如果 Buddy 也为空闲状态，则通过<code>drm_block_free</code>彻底释放 Block，并将它们的 Parent，也是将 Order 拆分前的 Block 重新加入 Free List；</li>
+</ul>
+<h3 id="-ttm-pool">关于 TTM_POOL</h3>
+<p>ttm_pool 是 TTM 架构的一个能力子集，它作为系统内存的缓冲器，为硬件加速提供内存推动力。<br />
+ttm_pool 的全局初始化接口为<code>ttm_pool_init</code>，一般情况下它在 TTM 初始化<code>ttm_device_init</code>中被调用。</p>
+<p>每个 TTM 设备内部嵌着 pool 结构，每个 pool 中包含以下具体的内存池，</p>
+<pre><code class="language-c++">struct {
+    struct ttm_pool_type orders[NR_PAGE_ORDERS];
+} caching[TTM_NUM_CACHING_TYPES];
+</code></pre>
+<p>其中<code>TTM_NUM_CACHING_TYPES</code>当前共定义为以下三种 cache 类型，<br />
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/pool_cache_enum.png" alt="" /></p>
+<p>当驱动中有具体的分配需求时，将从指定的 cache 类型池中获取到内存。</p>
+<p>Xe 驱动中在初始化 ttm_pool 时默认禁用了 dma_alloc 及 dma32 相关属性，这时 ttm_pool 将启用全局的内存池作为缓冲，它们分别是</p>
+<ul>
+<li>global_write_combined[NR_PAGE_ORDERS]</li>
+<li>global_uncached[NR_PAGE_ORDERS]</li>
+</ul>
+<p>为什么没有 cached 的池子呢，正如 Code 中注释写道，</p>
+<blockquote>
+<p>DGFX system memory is always WB / ttm_cached, since other caching modes are only supported on x86. DGFX GPU system memory accesses are always coherent with the CPU.</p>
+</blockquote>
+<p>这难道不是说明更应该需要一个 cached 内存池，或者初始化 ttm 时应该默认使能 use_dma_alloc？</p>
+<h4 id="heading-5">内存分配</h4>
+<p>对外接口 - <code>ttm_pool_alloc</code></p>
+<p>大致流程<br />
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/pool_alloc.png" alt="" /></p>
+<ul>
+<li>根据指定的 cache 策略和 order 大小选择对应的 pool，并从 pool 中取下 order 对应的 pages</li>
+<li>Cache 策略应用；映射所得到的 Pages</li>
+</ul>
+<h4 id="heading-6">内存释放</h4>
+<p>对外接口 - <code>ttm_pool_free</code></p>
+<p>大致流程<br />
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/pool_free.png" alt="" /></p>
+<ul>
+<li>从 page private 取出 order，再根据 cache 类型匹配对应的 pool</li>
+<li>清空内存并放回 pool，通过 lru 节点成员串联至 pool 的 pages 链表</li>
+</ul>
+<h4 id="heading-7">缓存释放</h4>
+<p>对外接口 - 注册 Shrinker，核心实现为<code>ttm_pool_shrink</code></p>
+<p>大致流程<br />
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/pool_shrink.png" alt="" /></p>
+<ul>
+<li>每种 cache 类型及每个 order 等级都对应一个 pool，它们在初始化时会被注册到 shrinker_list 链接中，在 shrink 流程中会依次选出一个目标 pool</li>
+<li>根据这个目标 pool 取出对应 order 的 pages 进行释放</li>
+</ul>
+<h2 id="heading-8">显存关联场景</h2>
+<h3 id="-dmabuf">关联 DMABUF</h3>
+<p>系统中的进程间或硬件 IP 间均有共享 Buffer 的需求，DRM 中实现共享的机制称之为 Prime，它由 <a href="https://airlied.blogspot.com/">Dave Airlie</a> 提出。</p>
+<p>这个名字的由来也是故事的，Nvidia 最早实现双显卡，名为 Optimus， Dave 参考并实现后，有趣地将 Linux 下实现的机制命名为了 Prime；<br />
+而 <a href="https://michaelbaystransformers.fandom.com/wiki/Optimus_Prime">Optimus Prime</a> 结合在一起意味着什么？<br />
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/alloc/optimus_prime.png" alt="" /><br />
+Prime 当前的架构是借助 DMA-BUF 来实现的，具体的说 Prime 的使用场景主要是 fd 的导入与导出，导入与的导出的操作接口分别对应<code>drm_prime_fd_to_handle_ioctl</code>和<code>drm_prime_handle_to_fd_ioctl</code>，</p>
+<p>在导入的场景中，DMA BUF 背后的内存可能来自于其它模块分配，Prime 先要判断这个 DMA BUF 是否已有 BO 关联，有则转换为 Handle，无则新建 BO 并关联；</p>
+<p>在导出的场景中，用户会先分配一块 BO 内存，然后通过这个 BO 对应的 Handle 进一步将其转换为 fd；</p>
+<h3 id="-user-ptr">关联 USER-PTR</h3>
+<p>用户 CPU 侧空间分配的内存也可以直接被 GPU 访问，这一部分使用场景的内存分配完全在用户层面，用户可以通过 Malloc 或 MMAP 分配，然后在 MAP 阶段映射到 GPU 页表中，具体操作后面篇章再介绍。</p>
+<p>需要注意的是，用户通过 Malloc 或 MMAP 分配空间后，这仅代表 VA 已完成分配，实际上给到 GPU 映射时极有可能存在物理内存未分配完整的情况，这样该如何处理？</p>
+<p>在 Xe 驱动的实现中，GPU 在映射 USER-PTR 类型内存时会通过<code>xe_vma_userptr_pin_pages</code>对内存页面做出 Pin 操作，确保物理内存完全分配。Pin 操作的核心是借助<code>hmm_range_fault</code>实现，这是 MM 子系统专门为异构处理器提供的一个内存分配手段，我们可以将它称之为 HMM</p>
+<p>关于 HMM </p>
+
+                </div>
+
+            </article>
+
+
+            
+                
+	<div class="mod-post__foot">
+	 文章标签: 
+     
+        <a href="/tag/intel gpu/">intel gpu</a>
+     
+     </br>
+	</div>
+
+                    
+
+                        <div class="mod-post__poster">
+                        </div>
+
+                        </div>
+
+                        
+                            
+<br>
+
+<div style="margin-bottom: 10px;">
+    上一篇 : <a href="/post/intel-discrete-gpu-memory-map-page-fault/">Intel Discrete GPU - Memory - Map / Page Fault</a>
+</div>
+
+
+
+<div style="margin-bottom: 40px;">
+    下一篇 : <a href="/post/intel-discrete-gpu-kai-pian/">Intel Discrete GPU - 开篇</a>
+</div>
+
+
+</div>	
+
+                                
+
+                                    
+                                        <!-- Reading Progress Component -->
+<div class="reading-progress-container">
+  <span class="reading-label">阅读进度</span>
+  <span class="reading-value">0%</span>
+  <svg class="progress-ring" viewBox="0 0 24 24">
+    <!-- Background Circle -->
+    <circle class="progress-ring__circle-bg" stroke-width="3" fill="transparent" r="10" cx="12" cy="12" />
+    <!-- Progress Circle -->
+    <circle class="progress-ring__circle" stroke-width="3" fill="transparent" r="10" cx="12" cy="12" />
+  </svg>
+</div>
+                                            <footer id="footer" class="footer">
+    <nav>
+        
+            
+                    <a class="menu-item" href="/">
+                        首页
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/post">
+                        博客
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/memos">
+                        闪念
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/archives">
+                        归档
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/tags">
+                        标签
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/links">
+                        友链
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/post/about">
+                        关于
+                    </a>
+                    
+    </nav>
+
+    <div class="Copyright">Copyright &copy; 2026 <a href="https://deepkernel.cn">
+                Deep Kernel
+            </a></div>
+
+    <div class="index_footer">
+        欢迎关注微信公众号：DeepKernel ·
+            <a class="rss" href="/feed.xml" target="_blank" rel="noopener noreferrer">
+                <i class="ri-rss-line"></i> RSS
+            </a>
+    </div>
+</footer>
+
+
+
+
+    <script>console.log("\n%c ✦ Gridea Pro v1.1.1 %c · Theme: amore v1.1.0 · https://gridea.pro %c\n","color:#fadfa3;background:#111111;padding:9px 14px;border-radius:4px 0 0 4px;font-weight:500;font-size:12px","color:#e05c00;background:#fff3ec;padding:9px 14px;border-radius:0 4px 4px 0;font-size:11px","")</script>
+</body>
+
+    </html>

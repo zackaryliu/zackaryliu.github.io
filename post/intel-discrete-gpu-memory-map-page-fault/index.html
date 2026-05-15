@@ -1,0 +1,592 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=0, width=device-width" />
+    <meta name="renderer" content="webkit">
+    <meta name="format-detection" content="telephone=no, email=no, address=no">
+
+    <meta name="generator" content="Gridea Pro 1.1.1">
+    <title>Intel Discrete GPU - Memory - Map / Page Fault | Deep Kernel</title>
+
+    
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#292a2d" media="(prefers-color-scheme: dark)">
+
+    
+    <link rel="shortcut icon" href="/media/images/favicon.ico">
+<link rel="stylesheet" href="/styles/main.min.css">
+
+    
+    <style>:root{--accent-color:#28df99;}</style>
+    
+
+    <script>
+    // 自动为所有 target="_blank" 的链接添加 rel="noopener noreferrer"
+    document.addEventListener('DOMContentLoaded', function() {
+        var links = document.querySelectorAll('a[target="_blank"]');
+        links.forEach(function(link) {
+            var rel = link.getAttribute('rel') || '';
+            if (rel.indexOf('noopener') === -1) {
+                rel += ' noopener';
+            }
+            if (rel.indexOf('noreferrer') === -1) {
+                rel += ' noreferrer';
+            }
+            link.setAttribute('rel', rel.trim());
+        });
+    });
+</script>
+
+
+
+    <script>
+    // declaraction of document.ready() function.
+    (function () {
+        var ie = !!(window.attachEvent && !window.opera);
+        var wk = /webkit\/(\d+)/i.test(navigator.userAgent) && (RegExp.$1 < 525);
+        var fn = [];
+        var run = function () {
+            for (var i = 0; i < fn.length; i++) fn[i]();
+        };
+        var d = document;
+        d.ready = function (f) {
+            if (!ie && !wk && d.addEventListener)
+                return d.addEventListener('DOMContentLoaded', f, false);
+            if (fn.push(f) > 1) return;
+            if (ie)
+                (function () {
+                    try {
+                        d.documentElement.doScroll('left');
+                        run();
+                    } catch (err) {
+                        setTimeout(arguments.callee, 0);
+                    }
+                })();
+            else if (wk)
+                var t = setInterval(function () {
+                    if (/^(loaded|complete)$/.test(d.readyState))
+                        clearInterval(t), run();
+                }, 0);
+        };
+    })();
+
+
+    document.ready(
+        function () {
+            var _Blog = window._Blog || {};
+
+            const getSystemTheme = () => {
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    return 'dark';
+                }
+                return 'light';
+            };
+
+            const configDefault = 'dark';
+            const currentTheme = window.localStorage && window.localStorage.getItem('theme');
+            const initialTheme = currentTheme || configDefault || getSystemTheme();
+            const isDark = initialTheme === 'dark';
+
+            const updateButtons = (dark) => {
+                const sunBtn = document.getElementById("theme-toggle-sun");
+                const moonBtn = document.getElementById("theme-toggle-moon");
+                const mobileSunBtn = document.getElementById("mobile-theme-toggle-sun");
+                const mobileMoonBtn = document.getElementById("mobile-theme-toggle-moon");
+
+                if (dark) {
+                    if (sunBtn) sunBtn.style.display = 'none';
+                    if (moonBtn) moonBtn.style.display = 'inline-block';
+                    if (mobileSunBtn) mobileSunBtn.style.display = 'none';
+                    if (mobileMoonBtn) mobileMoonBtn.style.display = 'inline-block';
+                } else {
+                    if (sunBtn) sunBtn.style.display = 'inline-block';
+                    if (moonBtn) moonBtn.style.display = 'none';
+                    if (mobileSunBtn) mobileSunBtn.style.display = 'inline-block';
+                    if (mobileMoonBtn) mobileMoonBtn.style.display = 'none';
+                }
+            };
+
+            const updateThemeColor = (dark) => {
+                const themeColor = dark ? '#292a2d' : '#ffffff';
+                const metaTags = document.querySelectorAll('meta[name="theme-color"]');
+                if (metaTags.length > 0) {
+                    // 保留第一个，移除其他的，避免重复
+                    for (let i = 1; i < metaTags.length; i++) {
+                        metaTags[i].remove();
+                    }
+                    metaTags[0].setAttribute('content', themeColor);
+                    metaTags[0].removeAttribute('media');
+                } else {
+                    const meta = document.createElement('meta');
+                    meta.name = 'theme-color';
+                    meta.content = themeColor;
+                    document.head.appendChild(meta);
+                }
+            };
+
+            const applyTheme = (dark) => {
+                const body = document.getElementsByTagName('body')[0];
+                if (dark) {
+                    body.classList.add('dark-theme');
+                } else {
+                    body.classList.remove('dark-theme');
+                }
+                updateButtons(dark);
+                updateThemeColor(dark);
+            };
+
+            // Initial application
+            applyTheme(isDark);
+            if (!currentTheme) {
+                window.localStorage && window.localStorage.setItem('theme', initialTheme);
+            }
+
+            _Blog.toggleTheme = function () {
+                const toggleFunc = (e) => {
+                    // Prevent bubbling if needed, though buttons are distinct now
+                    if (e) e.stopPropagation();
+
+                    const body = document.getElementsByTagName('body')[0];
+                    const isCurrentlyDark = body.classList.contains('dark-theme');
+
+                    if (isCurrentlyDark) {
+                        body.classList.remove('dark-theme');
+                        updateButtons(false);
+                        window.localStorage && window.localStorage.setItem('theme', 'light');
+                    } else {
+                        body.classList.add('dark-theme');
+                        updateButtons(true);
+                        window.localStorage && window.localStorage.setItem('theme', 'dark');
+                    }
+                };
+
+                const sunBtn = document.getElementById("theme-toggle-sun");
+                const moonBtn = document.getElementById("theme-toggle-moon");
+                const mobileSunBtn = document.getElementById("mobile-theme-toggle-sun");
+                const mobileMoonBtn = document.getElementById("mobile-theme-toggle-moon");
+
+                if (sunBtn) sunBtn.addEventListener('click', toggleFunc);
+                if (moonBtn) moonBtn.addEventListener('click', toggleFunc);
+                if (mobileSunBtn) mobileSunBtn.addEventListener('click', toggleFunc);
+                if (mobileMoonBtn) mobileMoonBtn.addEventListener('click', toggleFunc);
+            };
+            _Blog.toggleTheme();
+
+            if (window.matchMedia && !configDefault) {
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+                    const newTheme = e.matches ? 'dark' : 'light';
+                    applyTheme(e.matches);
+                    window.localStorage && window.localStorage.setItem('theme', newTheme);
+                });
+            }
+        }
+    );
+</script>
+
+<script>
+    // Reading Progress Component
+    document.addEventListener('DOMContentLoaded', () => {
+        const progressValue = document.querySelector('.reading-value');
+        const progressCircle = document.querySelector('.progress-ring__circle');
+        const container = document.querySelector('.reading-progress-container');
+
+        // Exit if elements don't exist (e.g., not on a post page)
+        if (!progressValue || !progressCircle || !container) {
+            return;
+        }
+
+        // SVG Circle setup
+        const radius = progressCircle.r.baseVal.value;
+        const circumference = 2 * Math.PI * radius;
+
+        progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+        progressCircle.style.strokeDashoffset = circumference;
+
+        function setProgress(percent) {
+            const safePercent = Math.min(100, Math.max(0, percent));
+            progressValue.textContent = `${Math.round(safePercent)}%`;
+            const offset = circumference - (safePercent / 100) * circumference;
+            progressCircle.style.strokeDashoffset = offset;
+        }
+
+        function onScroll() {
+            const scrollTop = window.scrollY || document.documentElement.scrollTop;
+            const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+
+            if (scrollHeight <= 0) {
+                setProgress(0);
+                return;
+            }
+
+            const scrollPercent = (scrollTop / scrollHeight) * 100;
+            setProgress(scrollPercent);
+
+            // Show/Hide logic: Show if scrolled more than 100px
+            if (scrollTop > 100) {
+                container.classList.add('show');
+            } else {
+                container.classList.remove('show');
+            }
+        }
+
+        // Initialize
+        onScroll();
+
+        // Listen for scroll events
+        window.addEventListener('scroll', onScroll, { passive: true });
+
+        // Recalculate on resize
+        window.addEventListener('resize', onScroll);
+    });
+</script>
+
+
+
+
+    
+
+    
+<meta name="description" content="一块显存分配完成后，通常要根据它的使用场景来决定是否经过 CPU 或 GPU 的访问，一旦涉及到某一方的访问，那么必然要在访问前做地址映射，所谓映射在系统底层的视角来看的话，或许也可以称之为对应页表的填充。 当前独立显存加入到整个系统后，访存的链路将变得稍显复杂。 CPU / GPU 均可以访问系统内存和独立显存，独立显存通过 PCIE 接入总线后，在 CPU 的视角中，仅是多了份总线地址空间&amp;hellip;">
+<link rel="canonical" href="https://deepkernel.cn/post/intel-discrete-gpu-memory-map-page-fault/">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"Intel Discrete GPU - Memory - Map / Page Fault","url":"https://deepkernel.cn/post/intel-discrete-gpu-memory-map-page-fault/","description":"一块显存分配完成后，通常要根据它的使用场景来决定是否经过 CPU 或 GPU 的访问，一旦涉及到某一方的访问，那么必然要在访问前做地址映射，所谓映射在系统底层的视角来看的话，或许也可以称之为对应页表的填充。 当前独立显存加入到整个系统后，访存的链路将变得稍显复杂。 CPU / GPU 均可以访问系统内存和独立显存，独立显存通过 PCIE 接入总线后，在 CPU 的视角中，仅是多了份总线地址空间\u0026hellip;","datePublished":"2024-12-01T22:59:24+08:00","dateModified":"2026-05-15T23:22:34+08:00","author":{"@type":"Person","name":"Deep Kernel"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"/images/avatar.png"},"name":"Deep Kernel"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","item":"https://deepkernel.cn","name":"Deep Kernel","position":1},{"@type":"ListItem","item":"https://deepkernel.cn/post/intel-discrete-gpu-memory-map-page-fault/","name":"Intel Discrete GPU - Memory - Map / Page Fault","position":2}]}</script>
+<meta property="og:title" content="Intel Discrete GPU - Memory - Map / Page Fault">
+<meta property="og:description" content="一块显存分配完成后，通常要根据它的使用场景来决定是否经过 CPU 或 GPU 的访问，一旦涉及到某一方的访问，那么必然要在访问前做地址映射，所谓映射在系统底层的视角来看的话，或许也可以称之为对应页表的填充。 当前独立显存加入到整个系统后，访存的链路将变得稍显复杂。 CPU / GPU 均可以访问系统内存和独立显存，独立显存通过 PCIE 接入总线后，在 CPU 的视角中，仅是多了份总线地址空间&amp;hellip;">
+<meta property="og:url" content="https://deepkernel.cn/post/intel-discrete-gpu-memory-map-page-fault/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Deep Kernel">
+<meta property="og:image" content="/images/avatar.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:url" content="https://deepkernel.cn/post/intel-discrete-gpu-memory-map-page-fault/">
+<meta name="twitter:title" content="Intel Discrete GPU - Memory - Map / Page Fault">
+<meta name="twitter:description" content="一块显存分配完成后，通常要根据它的使用场景来决定是否经过 CPU 或 GPU 的访问，一旦涉及到某一方的访问，那么必然要在访问前做地址映射，所谓映射在系统底层的视角来看的话，或许也可以称之为对应页表的填充。 当前独立显存加入到整个系统后，访存的链路将变得稍显复杂。 CPU / GPU 均可以访问系统内存和独立显存，独立显存通过 PCIE 接入总线后，在 CPU 的视角中，仅是多了份总线地址空间&amp;hellip;">
+<meta name="twitter:image" content="/images/avatar.png">
+</head>
+
+    <body>
+
+        <script>
+    (function () {
+        const getSystemTheme = () => {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                return 'dark';
+            }
+            return 'light';
+        };
+
+        const configDefault = 'dark';
+        const savedTheme = localStorage.getItem('theme');
+        const theme = savedTheme || configDefault || getSystemTheme();
+
+        if (theme === 'dark') {
+            document.body.classList.add('dark-theme');
+        }
+
+        if (!savedTheme) {
+            localStorage.setItem('theme', theme);
+        }
+    })();
+</script>
+<header class="mod-head">
+    <div class="mod-head__left">
+        <div class="mod-head__logo">
+            <a href="/">
+                
+                
+                    <img class="avatar" alt="avatar" src="/images/avatar.png">
+                
+            </a>
+        </div>
+    </div>
+
+    <div class="mod-head__right">
+        <span>
+            <button id="theme-toggle-sun" class="tiptap-button theme-toggle-sun" aria-label="Switch to dark mode">
+                <svg width="18" height="18" class="tiptap-button-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 1C12.5523 1 13 1.44772 13 2V4C13 4.55228 12.5523 5 12 5C11.4477 5 11 4.55228 11 4V2C11 1.44772 11.4477 1 12 1Z" fill="currentColor"></path>
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M7 12C7 9.23858 9.23858 7 12 7C14.7614 7 17 9.23858 17 12C17 14.7614 14.7614 17 12 17C9.23858 17 7 14.7614 7 12ZM12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9Z" fill="currentColor"></path>
+                    <path d="M13 20C13 19.4477 12.5523 19 12 19C11.4477 19 11 19.4477 11 20V22C11 22.5523 11.4477 23 12 23C12.5523 23 13 22.5523 13 22V20Z" fill="currentColor"></path>
+                    <path d="M4.22282 4.22289C4.61335 3.83236 5.24651 3.83236 5.63704 4.22289L7.04704 5.63289C7.43756 6.02341 7.43756 6.65658 7.04704 7.0471C6.65651 7.43762 6.02335 7.43762 5.63283 7.0471L4.22282 5.6371C3.8323 5.24658 3.8323 4.61341 4.22282 4.22289Z" fill="currentColor"></path>
+                    <path d="M18.367 16.9529C17.9765 16.5623 17.3433 16.5623 16.9528 16.9529C16.5623 17.3434 16.5623 17.9766 16.9528 18.3671L18.3628 19.7771C18.7533 20.1676 19.3865 20.1676 19.777 19.7771C20.1675 19.3866 20.1675 18.7534 19.777 18.3629L18.367 16.9529Z" fill="currentColor"></path>
+                    <path d="M1 12C1 11.4477 1.44772 11 2 11H4C4.55228 11 5 11.4477 5 12C5 12.5523 4.55228 13 4 13H2C1.44772 13 1 12.5523 1 12Z" fill="currentColor"></path>
+                    <path d="M20 11C19.4477 11 19 11.4477 19 12C19 12.5523 19.4477 13 20 13H22C22.5523 13 23 12.5523 23 12C23 11.4477 22.5523 11 22 11H20Z" fill="currentColor"></path>
+                    <path d="M7.04704 16.9529C7.43756 17.3434 7.43756 17.9766 7.04704 18.3671L5.63704 19.7771C5.24651 20.1676 4.61335 20.1676 4.22282 19.7771C3.8323 19.3866 3.8323 18.7534 4.22283 18.3629L5.63283 16.9529C6.02335 16.5623 6.65651 16.5623 7.04704 16.9529Z" fill="currentColor"></path>
+                    <path d="M19.777 5.6371C20.1675 5.24657 20.1675 4.61341 19.777 4.22289C19.3865 3.83236 18.7533 3.83236 18.3628 4.22289L16.9528 5.63289C16.5623 6.02341 16.5623 6.65658 16.9528 7.0471C17.3433 7.43762 17.9765 7.43762 18.367 7.0471L19.777 5.6371Z" fill="currentColor"></path>
+                </svg>
+            </button>
+            <button id="theme-toggle-moon" class="tiptap-button theme-toggle-moon" aria-label="Switch to light mode">
+                <svg width="18" height="18" class="tiptap-button-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C10.0222 2 8.08879 2.58649 6.4443 3.6853C4.79981 4.78412 3.51809 6.3459 2.76121 8.17317C2.00433 10.0004 1.8063 12.0111 2.19215 13.9509C2.578 15.8907 3.53041 17.6725 4.92894 19.0711C6.32746 20.4696 8.10929 21.422 10.0491 21.8079C11.9889 22.1937 13.9996 21.9957 15.8268 21.2388C17.6541 20.4819 19.2159 19.2002 20.3147 17.5557C21.4135 15.9112 22 13.9778 22 12C22 11.5955 21.7564 11.2309 21.3827 11.0761C21.009 10.9213 20.5789 11.0069 20.2929 11.2929C19.287 12.2988 17.9226 12.864 16.5 12.864C15.0774 12.864 13.713 12.2988 12.7071 11.2929C11.7012 10.287 11.136 8.92261 11.136 7.5C11.136 6.07739 11.7012 4.71304 12.7071 3.70711C12.9931 3.42111 13.0787 2.99099 12.9239 2.61732C12.7691 2.24364 12.4045 2 12 2ZM7.55544 5.34824C8.27036 4.87055 9.05353 4.51389 9.87357 4.28778C9.39271 5.27979 9.13604 6.37666 9.13604 7.5C9.13604 9.45304 9.91189 11.3261 11.2929 12.7071C12.6739 14.0881 14.547 14.864 16.5 14.864C17.6233 14.864 18.7202 14.6073 19.7122 14.1264C19.4861 14.9465 19.1295 15.7296 18.6518 16.4446C17.7727 17.7602 16.5233 18.7855 15.0615 19.391C13.5997 19.9965 11.9911 20.155 10.4393 19.8463C8.88743 19.5376 7.46197 18.7757 6.34315 17.6569C5.21447 16.538 4.4624 15.1126 4.15372 13.5607C3.84504 12.0089 4.00347 10.4003 4.60897 8.93853C5.21447 7.47672 6.23985 6.22729 7.55544 5.34824Z" fill="currentColor"></path>
+                    <path d="M19 2C19.5523 2 20 2.44772 20 3V4H21C21.5523 4 22 4.44772 22 5C22 5.55228 21.5523 6 21 6H20V7C20 7.55228 19.5523 8 19 8C18.4477 8 18 7.55228 18 7V6H17C16.4477 6 16 5.55228 16 5C16 4.44772 16.4477 4 17 4H18V3C18 2.44772 18.4477 2 19 2Z" fill="currentColor"></path>
+                </svg>
+            </button>
+        </span>
+    </div>
+</header>
+<!-- <a href="#" id="back-to-top" style="display: inline;"> ^ </a> -->
+
+            <article class="mod-post mod-post__type-post">
+                <header>
+                    <h1 class="mod-post__title">
+                        Intel Discrete GPU - Memory - Map / Page Fault
+                    </h1>
+                </header>
+
+                <div class="mod-post__meta">
+                    <time datetime="2024-12-01">
+                        2024-12-01
+                    </time> • 11 分钟阅读 •
+                        
+                            <a href="/tag/intel gpu/">
+                                intel gpu
+                            </a>
+                            
+                                    
+                </div>
+
+
+
+                <div class="mod-post__entry wzulli">
+                    
+                            <p>一块显存分配完成后，通常要根据它的使用场景来决定是否经过 CPU 或 GPU 的访问，一旦涉及到某一方的访问，那么必然要在访问前做地址映射，所谓映射在系统底层的视角来看的话，或许也可以称之为对应页表的填充。</p>
+<p>当前独立显存加入到整个系统后，访存的链路将变得稍显复杂。</p>
+<p>CPU / GPU 均可以访问系统内存和独立显存，独立显存通过 PCIE 接入总线后，在 CPU 的视角中，仅是多了份总线地址空间，CPU 可通过 MMU 直接访问。<br />
+独立显存在 GPU 板载集成，可通过内部总线直接访问。需要注意的是，GPU 也存在类 MMU 的 IP，它一般是厂商自己制造，在 Intel 独显中，它被称之为 GAM；<br />
+而 GPU 访问系统内存时，则需要经过自身的 GAM 与系统中外设专用的 SMMU 才能到达目标系统内存，这其中就涉及到两层页表。</p>
+<p>大致访存链路如下，<br />
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/map/global.png" alt="" /></p>
+<p>理清大致的系统结构后，我们步入软件的世界，来看看 Xe 驱动中是怎样将显存映射到 CPU / GPU 的，<br />
+先从 CPU 映射开始看。</p>
+<h3 id="cpu-map">CPU MAP</h3>
+<p>当 Kernel 中完成一次显存 BO 分配时，还要与 DRM 子系统进行关联后，才能被 CPU MAP 操作时被找到，其关联的桥梁为<code>drm_vma_offset_node</code>，这个 offset 是针对一个<code>drm_device</code>而言，也就是在 Xe 驱动中，这个<code>vma offset</code>空间只有一个，一块 BO 插入到空间的接口为<code>drm_vma_offset_add</code>；</p>
+<p>除此之外，BO 分配完成后还会通过<code>drm_gem_handle_create</code>创建 Handle 并将其传回来用户空间，用户空间将这个 Handle 作为 fd 来找到 BO；需要注意的是，Handle 的作用域只有 Xe 的内部，DRM 查找 BO 要根据<code>vma offset</code>；</p>
+<p>用户空间仅能与 DRM 子系统直接对接，那么，CPU 映射一块显存就需要两步，第一步是通过 fd 转换为<code>vma offset</code>，第二步是通过 offset 继而 mmap；</p>
+<p>以下是 Mesa 项目中对 BO 分配及 CPU MAP 的一个示例流程，</p>
+<pre><code class="language-c++">struct drm_xe_gem_create gem_create = {
+    .size        = size_in_bytes,
+    .cpu_caching = DRM_XE_GEM_CPU_CACHING_WB,
+    .placement   = 1u &lt;&lt; ec-&gt;devinfo-&gt;mem.sram.mem.instance,
+};
+intel_ioctl(ec-&gt;fd, DRM_IOCTL_XE_GEM_CREATE, &amp;gem_create);
+
+struct drm_xe_gem_mmap_offset mm = {
+    .handle = gem_create.handle,
+};
+intel_ioctl(ec-&gt;fd, DRM_IOCTL_XE_GEM_MMAP_OFFSET, &amp;mm);
+
+bo-&gt;handle = gem_create.handle;
+bo-&gt;map    = mmap(NULL, size_in_bytes, PROT_READ | PROT_WRITE,
+            MAP_SHARED, ec-&gt;fd, mm.offset);
+</code></pre>
+<p>映射流程会通过 DRM 最终到达 Xe mmap 中，Xe 中没有做过多的操作，重点在于将对应 vma 的 ops 配置为<code>xe_gem_vm_ops</code>，其 fault 成员为<code>xe_gem_fault</code>；</p>
+<h3 id="cpu-fault">CPU Fault</h3>
+<p>当 CPU 访问所映射的 BO 空间后将会触发 Page Fault，那么<code>xe_gem_fault</code>将会被调用，首先内部会通过 vma 中关联的信息取出 BO，<br />
+先通过<code>ttm_io_prot</code>取出 BO 分配时所配置的 Cache 策略，然后根据 BO 的存在位置做出不同的操作流程，</p>
+<p>BO 存在于系统内存，则</p>
+<ul>
+<li>要通过<code>ttm_tt_populate</code>确认 BO 内存为 Pin 住状态，其中可能涉及内存 swap</li>
+<li>通过<code>ttm-&gt;pages[page_offset]</code>取出内存对应 PFN</li>
+</ul>
+<p>BO 存在于独立显存，刚</p>
+<ul>
+<li>pgprot_decrypted ??TODO</li>
+<li>通过<code>ttm_bo_io_mem_pfn(bo, page_offset)</code>取出内存对应 PFN</li>
+</ul>
+<p>最终，我们已经拿到的内存对应的 PFN 和 PROT，那么则可以通过<code>vmf_insert_pfn_prot</code>来完成 CPU 侧的映射页表填充。</p>
+<p>CPU 缺页这里还存在个小优化，它是 prefault，因为显存的分配和使用往往是大小对应的，我们可以假设一块 BO 在 CPU 需要访问时会被大面积访问到，那到预先 Page Fault 的确能够节省很多开销。在 Xe 驱动中，<code>num_prefault</code>的大小默认配置为<code>TTM_BO_VM_NUM_PREFAULT = 16</code>；</p>
+<h3 id="gpu-map">GPU MAP</h3>
+<p>GPU 映射显存的过程要比 CPU 映射复杂些，因为在显存分配章节我们曾提过，BO 的背后所代表的实际显存，可能不仅仅是 Xe 内部分配的，它还可能是 DMA-BUF 或 USER-PTR，然而 CPU 映射这两种情况的话再普通不过，我们没有提及。但在 GPU 映射的场景，它们的映射与 Xe 驱动的实现息息相关。</p>
+<p>BO 背后显存实际类型共有 VRAM / SRAM / DMA-BUF / USER-PTR, 我们在上面提到过，除 VRAM 类型外，像其它三种类似都会存储在系统内存中，而 GPU 到达系统内存的映射不仅需要 GPU 内部的映射，还要外系统 SMMU 的映射。</p>
+<p>先来看看三种类型的 SMMU 映射时机是什么阶段，</p>
+<ul>
+<li>SRAM - 在 BO 初次创建在 validate 后的 move 流程中，会通过<code>xe_tt_map_sg</code>接口，并将所得到的 sg 保存至<code>xe_tt-&gt;sg</code></li>
+<li>DMA-BUF - 这里指的是从外部引入到 Xe 的 DMA-BUF，应用层通过调用<code>fd to handle</code>后，Xe 驱动中的<code>xe_gem_prime_import</code>会被触发，在 Xe 中随即要创建 BO 与 DMA-BUF 进行关联，这个 BO 比较特殊，其 type 为<code>ttm_bo_type_sg</code>，且<code>ttm_tt</code>的 flags 带有<code>TTM_TT_FLAG_EXTERNAL</code>属性，最重要的是，这个 BO 不会再另开辟新的内存空间；触发 SMMU 映射时机的话，与下面的 USER-PTR 类型一起提及；</li>
+<li>USER-PTR - GPU 映射 BO 的入口为<code>XE_VM_BIND</code>，关于 DMA-BUF 与 USER-PTR 的 SMMU 侧映射均在 vm bind 流程中体现；其中通过<code>xe_vma_userptr_pin_pages</code>借助 hmm 主动缺页补足 USER-PTR 所对应的全部虚拟空间，再通过<code>xe_build_sg</code>完成映射；而针对 DMA-BUF 类型，在 vm bind 过程，会通过<code>vm_bind_ioctl_ops_lock_and_prep</code>来做资源准备，其中会再次通过 validate 确认 BO 资源可用，这一次的调用中<code>xe_bo_move_dmabuf</code>将被涉及，其中就通过<code>dma_buf_map_attachment</code>完成了对 DMA-BUF 的 SMMU 侧映射；</li>
+</ul>
+<p>几种涉及 SMMU 映射类型的流程，现在已大致表述完成。其实 vm bind 过程中还有一个很重要的概念没有被提及，它是<code>xe_vma</code>，一段地址空间的映射需要 VA 和 PA，<code>xe_vma</code>的作用是管理其中的 VA；其核心成员为<code>drm_gpuva</code>，它作为与 DRM 子系统连接的桥梁。</p>
+<p>需要注意的是，<code>xe_vma</code>在这里只负责管理 VA，其中并不包含 VA 的分配，因为在 Xe GPU 软件实现中，VA 的分配是在用户态驱动来完成。在 Mesa Xe 用户驱动实现中，VA 往往通过<code>util_vma_heap_alloc_addr</code>来分配。</p>
+<p>每一个<code>xe_vma</code>会通过<code>vm_bind_ioctl_ops_parse</code>解析用户下发的请求所构建成的<code>drm_gpuva_ops</code>并创建，因为<code>xe_vma</code>承载着实际显存的 Bind 使命，它要与所有使用到的显存都存在联系，<br />
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/map/bo_vma.png" alt="" /></p>
+<p>以上流程，完成了 GPU 映射显存时的部分准备工作。现在开始 GPU 自身页表的映射构建流程，上面有提及，这一块的流程可称之为<code>vm bind</code>；<br />
+Vm bind 首先要解析出用户的 bind 请求，单次请求中的 Bind 显存数可以是多个，除 USER-PTR 外，用户均需要通过 Gem Handle 指定所需 Bind 显存目标。</p>
+<p>以下是 Mesa 项目中对 BO 做 GPU MAP 的一个示例流程，</p>
+<pre><code class="language-c++">struct drm_xe_vm_bind_op bind_ops[] = {
+    {
+        .op        = DRM_XE_VM_BIND_OP_MAP,
+        .obj       = ec-&gt;bo.batch.handle,
+        .addr      = ec-&gt;bo.batch.addr,
+        .range     = EXECUTOR_BO_SIZE,
+        .pat_index = ec-&gt;devinfo-&gt;pat.cached_coherent.index,
+    },
+};
+
+struct drm_xe_sync bind_syncs[] = {
+    {
+        .type   = DRM_XE_SYNC_TYPE_SYNCOBJ,
+        .handle = sync_handles[0],
+        .flags  = DRM_XE_SYNC_FLAG_SIGNAL,
+    },
+};
+
+struct drm_xe_vm_bind bind = {
+    .vm_id           = ec-&gt;xe.vm_id,
+    .num_binds       = ARRAY_SIZE(bind_ops),
+    .vector_of_binds = (uintptr_t)bind_ops,
+    .num_syncs       = 1,
+    .syncs           = (uintptr_t)bind_syncs,
+};
+
+intel_ioctl(ec-&gt;fd, DRM_IOCTL_XE_VM_BIND, &amp;bind);
+</code></pre>
+<p>千呼万唤，基于以上前置工作，可以开始最重要的映射 GPU 内部页表映射环节。</p>
+<p>映射流程可拆解为两步，</p>
+<ul>
+<li>
+<p>第一步是 PTE Entry 的构建 - Entry 值的构建在 Xe 驱动中称之为 encode，这一过程主要在<code>xe_pt_stage_bind</code>中来完成。Encode 之初，会根据所映射的内存类型对 pte 赋予一些 default 值，如<code>XE_PPGTT_PTE_DM</code>等，其代表映射的内存在 VRAM 上。之后通过<code>xe_pt_walk_range</code>调用<code>pt_entry</code>回调来完成每一阶页表的填充，如 PDE / PTE 等，在 Xe 驱动中这个回调为<code>xe_pt_stage_bind_entry</code>；</p>
+<p>在页表创建的过程中，如果 PDE 需要新建则通过<code>pde_encode_bo</code>构造 PDE Value 并通过<code>xe_pt_insert_entry</code>插入至上级页表项中，这个 insert 操作可能不能即刻执行的，需要考虑 GPU 的异步性，所以可能会延后更新。PTE 的构建通过<code>pte_encode_vma</code>来完成，除了填充 PA 外，还补充了一些页表项属性，如<code>XE_PAGE_PRESENT</code> / <code>XE_PAGE_RW</code>等。</p>
+<p>关于 PA 的获取，我们已经了解显存多种类型，那么 PA 的获取方式要根据类型进行区分，来看看 Xe 中是如何实现的，</p>
+<pre><code class="language-c++">if (xe_vma_is_userptr(vma))
+    xe_res_first_sg(to_userptr_vma(vma)-&gt;userptr.sg, 0,
+            xe_vma_size(vma), &amp;curs);
+else if (xe_bo_is_vram(bo) || xe_bo_is_stolen(bo))
+    xe_res_first(bo-&gt;ttm.resource, xe_vma_bo_offset(vma),
+             xe_vma_size(vma), &amp;curs);
+else
+    xe_res_first_sg(xe_bo_sg(bo), xe_vma_bo_offset(vma),
+            xe_vma_size(vma), &amp;curs);
+</code></pre>
+</li>
+<li>
+<p>第二步便是刚刚提到的页表项 Entry 的更新 - 这一块的操作在<code>xe_migrate_update_pgtables</code>所涵盖，其中包含通过<code>xe_migrate_update_pgtables_cpu</code>通过 CPU 立即写入页表，但它的前提是所更新的 GPU 任务的 vm 中没有任务依赖在 pending，通过<code>xe_pt_vm_dependencies</code>判断；其次是通过 GPU 来更新页表，实现的接口是<code>__xe_migrate_update_pgtables</code>，涉及内容较多，这一块的细节我们后续在 Migrate 章节分析；</p>
+</li>
+</ul>
+<h3 id="gpu-fault">GPU Fault</h3>
+<p>Intel GPU 的运行模式一般分为两类，</p>
+<ul>
+<li>Excution List - 内核驱动直接的控制面更广，可以直接影响 GPU 的任务抢占</li>
+<li>GUC(GPU uController) - 在内核驱动与 GPU 硬件之间引入一个协处理器，协处理器需要固件来运行，它作为驱动的辅助作用于硬件之上，能够有更高的效率来控制任务的抢占和 HW Fence 的处理<br />
+GPU 缺页的场景仅在 GUC &amp;&amp; USM 模式(USM 介绍详见 - <a href="https://deepkernel.cn/post/intel-discrete-gpu-memory-hmm-device-pages/">链接</a>)下生效，其核心实现为<code>handle_pagefault</code>，</li>
+</ul>
+<p>其流程大致如下，<br />
+<img src="https://zackaryliu.github.io/post-images/intel_gpu/map/gpu_fault.png" alt="" /></p>
+<ul>
+<li>如果 USER-PTR 有发生 Invalide 则需要 repin</li>
+<li>通过 validate 和 rebind 重新 bind vma，其中 validate 可能涉及 swap 和 move，这两点的原理实现后面章节详细分析</li>
+</ul>
+<p>有没有想过<code>xe_vma_userptr_check_repin</code>是怎样判断出 USER-PTR 对应的内存有被 Invalidate 的？其实这是一个 MMU 的在 Invalidate 时的一个 Notify，Xe 驱动中有注册<code>vma_userptr_invalidate</code>回调，如果有发生 invalidate 则 seq 会有更新。</p>
+
+                </div>
+
+            </article>
+
+
+            
+                
+	<div class="mod-post__foot">
+	 文章标签: 
+     
+        <a href="/tag/intel gpu/">intel gpu</a>
+     
+     </br>
+	</div>
+
+                    
+
+                        <div class="mod-post__poster">
+                        </div>
+
+                        </div>
+
+                        
+                            
+<br>
+
+<div style="margin-bottom: 10px;">
+    上一篇 : <a href="/post/intel-discrete-gpu-memory-migrate/">Intel Discrete GPU - Memory - Migrate</a>
+</div>
+
+
+
+<div style="margin-bottom: 40px;">
+    下一篇 : <a href="/post/intel-discrete-gpu-memory-alloc/">Intel Discrete GPU - Memory - Alloc</a>
+</div>
+
+
+</div>	
+
+                                
+
+                                    
+                                        <!-- Reading Progress Component -->
+<div class="reading-progress-container">
+  <span class="reading-label">阅读进度</span>
+  <span class="reading-value">0%</span>
+  <svg class="progress-ring" viewBox="0 0 24 24">
+    <!-- Background Circle -->
+    <circle class="progress-ring__circle-bg" stroke-width="3" fill="transparent" r="10" cx="12" cy="12" />
+    <!-- Progress Circle -->
+    <circle class="progress-ring__circle" stroke-width="3" fill="transparent" r="10" cx="12" cy="12" />
+  </svg>
+</div>
+                                            <footer id="footer" class="footer">
+    <nav>
+        
+            
+                    <a class="menu-item" href="/">
+                        首页
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/post">
+                        博客
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/memos">
+                        闪念
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/archives">
+                        归档
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/tags">
+                        标签
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/links">
+                        友链
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/post/about">
+                        关于
+                    </a>
+                    
+    </nav>
+
+    <div class="Copyright">Copyright &copy; 2026 <a href="https://deepkernel.cn">
+                Deep Kernel
+            </a></div>
+
+    <div class="index_footer">
+        欢迎关注微信公众号：DeepKernel ·
+            <a class="rss" href="/feed.xml" target="_blank" rel="noopener noreferrer">
+                <i class="ri-rss-line"></i> RSS
+            </a>
+    </div>
+</footer>
+
+
+
+
+    <script>console.log("\n%c ✦ Gridea Pro v1.1.1 %c · Theme: amore v1.1.0 · https://gridea.pro %c\n","color:#fadfa3;background:#111111;padding:9px 14px;border-radius:4px 0 0 4px;font-weight:500;font-size:12px","color:#e05c00;background:#fff3ec;padding:9px 14px;border-radius:0 4px 4px 0;font-size:11px","")</script>
+</body>
+
+    </html>

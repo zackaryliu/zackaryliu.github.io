@@ -1,0 +1,565 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=0, width=device-width" />
+    <meta name="renderer" content="webkit">
+    <meta name="format-detection" content="telephone=no, email=no, address=no">
+
+    <meta name="generator" content="Gridea Pro 1.1.1">
+    <title>Intel Discrete GPU - Memory - Migrate | Deep Kernel</title>
+
+    
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#292a2d" media="(prefers-color-scheme: dark)">
+
+    
+    <link rel="shortcut icon" href="/media/images/favicon.ico">
+<link rel="stylesheet" href="/styles/main.min.css">
+
+    
+    <style>:root{--accent-color:#28df99;}</style>
+    
+
+    <script>
+    // 自动为所有 target="_blank" 的链接添加 rel="noopener noreferrer"
+    document.addEventListener('DOMContentLoaded', function() {
+        var links = document.querySelectorAll('a[target="_blank"]');
+        links.forEach(function(link) {
+            var rel = link.getAttribute('rel') || '';
+            if (rel.indexOf('noopener') === -1) {
+                rel += ' noopener';
+            }
+            if (rel.indexOf('noreferrer') === -1) {
+                rel += ' noreferrer';
+            }
+            link.setAttribute('rel', rel.trim());
+        });
+    });
+</script>
+
+
+
+    <script>
+    // declaraction of document.ready() function.
+    (function () {
+        var ie = !!(window.attachEvent && !window.opera);
+        var wk = /webkit\/(\d+)/i.test(navigator.userAgent) && (RegExp.$1 < 525);
+        var fn = [];
+        var run = function () {
+            for (var i = 0; i < fn.length; i++) fn[i]();
+        };
+        var d = document;
+        d.ready = function (f) {
+            if (!ie && !wk && d.addEventListener)
+                return d.addEventListener('DOMContentLoaded', f, false);
+            if (fn.push(f) > 1) return;
+            if (ie)
+                (function () {
+                    try {
+                        d.documentElement.doScroll('left');
+                        run();
+                    } catch (err) {
+                        setTimeout(arguments.callee, 0);
+                    }
+                })();
+            else if (wk)
+                var t = setInterval(function () {
+                    if (/^(loaded|complete)$/.test(d.readyState))
+                        clearInterval(t), run();
+                }, 0);
+        };
+    })();
+
+
+    document.ready(
+        function () {
+            var _Blog = window._Blog || {};
+
+            const getSystemTheme = () => {
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    return 'dark';
+                }
+                return 'light';
+            };
+
+            const configDefault = 'dark';
+            const currentTheme = window.localStorage && window.localStorage.getItem('theme');
+            const initialTheme = currentTheme || configDefault || getSystemTheme();
+            const isDark = initialTheme === 'dark';
+
+            const updateButtons = (dark) => {
+                const sunBtn = document.getElementById("theme-toggle-sun");
+                const moonBtn = document.getElementById("theme-toggle-moon");
+                const mobileSunBtn = document.getElementById("mobile-theme-toggle-sun");
+                const mobileMoonBtn = document.getElementById("mobile-theme-toggle-moon");
+
+                if (dark) {
+                    if (sunBtn) sunBtn.style.display = 'none';
+                    if (moonBtn) moonBtn.style.display = 'inline-block';
+                    if (mobileSunBtn) mobileSunBtn.style.display = 'none';
+                    if (mobileMoonBtn) mobileMoonBtn.style.display = 'inline-block';
+                } else {
+                    if (sunBtn) sunBtn.style.display = 'inline-block';
+                    if (moonBtn) moonBtn.style.display = 'none';
+                    if (mobileSunBtn) mobileSunBtn.style.display = 'inline-block';
+                    if (mobileMoonBtn) mobileMoonBtn.style.display = 'none';
+                }
+            };
+
+            const updateThemeColor = (dark) => {
+                const themeColor = dark ? '#292a2d' : '#ffffff';
+                const metaTags = document.querySelectorAll('meta[name="theme-color"]');
+                if (metaTags.length > 0) {
+                    // 保留第一个，移除其他的，避免重复
+                    for (let i = 1; i < metaTags.length; i++) {
+                        metaTags[i].remove();
+                    }
+                    metaTags[0].setAttribute('content', themeColor);
+                    metaTags[0].removeAttribute('media');
+                } else {
+                    const meta = document.createElement('meta');
+                    meta.name = 'theme-color';
+                    meta.content = themeColor;
+                    document.head.appendChild(meta);
+                }
+            };
+
+            const applyTheme = (dark) => {
+                const body = document.getElementsByTagName('body')[0];
+                if (dark) {
+                    body.classList.add('dark-theme');
+                } else {
+                    body.classList.remove('dark-theme');
+                }
+                updateButtons(dark);
+                updateThemeColor(dark);
+            };
+
+            // Initial application
+            applyTheme(isDark);
+            if (!currentTheme) {
+                window.localStorage && window.localStorage.setItem('theme', initialTheme);
+            }
+
+            _Blog.toggleTheme = function () {
+                const toggleFunc = (e) => {
+                    // Prevent bubbling if needed, though buttons are distinct now
+                    if (e) e.stopPropagation();
+
+                    const body = document.getElementsByTagName('body')[0];
+                    const isCurrentlyDark = body.classList.contains('dark-theme');
+
+                    if (isCurrentlyDark) {
+                        body.classList.remove('dark-theme');
+                        updateButtons(false);
+                        window.localStorage && window.localStorage.setItem('theme', 'light');
+                    } else {
+                        body.classList.add('dark-theme');
+                        updateButtons(true);
+                        window.localStorage && window.localStorage.setItem('theme', 'dark');
+                    }
+                };
+
+                const sunBtn = document.getElementById("theme-toggle-sun");
+                const moonBtn = document.getElementById("theme-toggle-moon");
+                const mobileSunBtn = document.getElementById("mobile-theme-toggle-sun");
+                const mobileMoonBtn = document.getElementById("mobile-theme-toggle-moon");
+
+                if (sunBtn) sunBtn.addEventListener('click', toggleFunc);
+                if (moonBtn) moonBtn.addEventListener('click', toggleFunc);
+                if (mobileSunBtn) mobileSunBtn.addEventListener('click', toggleFunc);
+                if (mobileMoonBtn) mobileMoonBtn.addEventListener('click', toggleFunc);
+            };
+            _Blog.toggleTheme();
+
+            if (window.matchMedia && !configDefault) {
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+                    const newTheme = e.matches ? 'dark' : 'light';
+                    applyTheme(e.matches);
+                    window.localStorage && window.localStorage.setItem('theme', newTheme);
+                });
+            }
+        }
+    );
+</script>
+
+<script>
+    // Reading Progress Component
+    document.addEventListener('DOMContentLoaded', () => {
+        const progressValue = document.querySelector('.reading-value');
+        const progressCircle = document.querySelector('.progress-ring__circle');
+        const container = document.querySelector('.reading-progress-container');
+
+        // Exit if elements don't exist (e.g., not on a post page)
+        if (!progressValue || !progressCircle || !container) {
+            return;
+        }
+
+        // SVG Circle setup
+        const radius = progressCircle.r.baseVal.value;
+        const circumference = 2 * Math.PI * radius;
+
+        progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+        progressCircle.style.strokeDashoffset = circumference;
+
+        function setProgress(percent) {
+            const safePercent = Math.min(100, Math.max(0, percent));
+            progressValue.textContent = `${Math.round(safePercent)}%`;
+            const offset = circumference - (safePercent / 100) * circumference;
+            progressCircle.style.strokeDashoffset = offset;
+        }
+
+        function onScroll() {
+            const scrollTop = window.scrollY || document.documentElement.scrollTop;
+            const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+
+            if (scrollHeight <= 0) {
+                setProgress(0);
+                return;
+            }
+
+            const scrollPercent = (scrollTop / scrollHeight) * 100;
+            setProgress(scrollPercent);
+
+            // Show/Hide logic: Show if scrolled more than 100px
+            if (scrollTop > 100) {
+                container.classList.add('show');
+            } else {
+                container.classList.remove('show');
+            }
+        }
+
+        // Initialize
+        onScroll();
+
+        // Listen for scroll events
+        window.addEventListener('scroll', onScroll, { passive: true });
+
+        // Recalculate on resize
+        window.addEventListener('resize', onScroll);
+    });
+</script>
+
+
+
+
+    
+
+    
+<meta name="description" content="说到 Migrate，我们可能最开始想到 Kernel 中内存子系统中 MM Compact 时所涉及到的迁移，Compact 的迁移是为了能够得到更多连续的空闲物理页，迁移时没有指定的源/目的地址。而这里提到的 Migrate 更像是一个 DMA 操作，有地址目标、大小等，而且不仅仅发生在系统内存中。 Xe 驱动中的 Migrate 通过 Intel GPU 硬件中模块实现，它一般被称之为`C&amp;hellip;">
+<link rel="canonical" href="https://deepkernel.cn/post/intel-discrete-gpu-memory-migrate/">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"Intel Discrete GPU - Memory - Migrate","url":"https://deepkernel.cn/post/intel-discrete-gpu-memory-migrate/","description":"说到 Migrate，我们可能最开始想到 Kernel 中内存子系统中 MM Compact 时所涉及到的迁移，Compact 的迁移是为了能够得到更多连续的空闲物理页，迁移时没有指定的源/目的地址。而这里提到的 Migrate 更像是一个 DMA 操作，有地址目标、大小等，而且不仅仅发生在系统内存中。 Xe 驱动中的 Migrate 通过 Intel GPU 硬件中模块实现，它一般被称之为`C\u0026hellip;","datePublished":"2024-12-05T09:14:11+08:00","dateModified":"2026-05-15T23:22:34+08:00","author":{"@type":"Person","name":"Deep Kernel"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"/images/avatar.png"},"name":"Deep Kernel"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","item":"https://deepkernel.cn","name":"Deep Kernel","position":1},{"@type":"ListItem","item":"https://deepkernel.cn/post/intel-discrete-gpu-memory-migrate/","name":"Intel Discrete GPU - Memory - Migrate","position":2}]}</script>
+<meta property="og:title" content="Intel Discrete GPU - Memory - Migrate">
+<meta property="og:description" content="说到 Migrate，我们可能最开始想到 Kernel 中内存子系统中 MM Compact 时所涉及到的迁移，Compact 的迁移是为了能够得到更多连续的空闲物理页，迁移时没有指定的源/目的地址。而这里提到的 Migrate 更像是一个 DMA 操作，有地址目标、大小等，而且不仅仅发生在系统内存中。 Xe 驱动中的 Migrate 通过 Intel GPU 硬件中模块实现，它一般被称之为`C&amp;hellip;">
+<meta property="og:url" content="https://deepkernel.cn/post/intel-discrete-gpu-memory-migrate/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Deep Kernel">
+<meta property="og:image" content="/images/avatar.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:url" content="https://deepkernel.cn/post/intel-discrete-gpu-memory-migrate/">
+<meta name="twitter:title" content="Intel Discrete GPU - Memory - Migrate">
+<meta name="twitter:description" content="说到 Migrate，我们可能最开始想到 Kernel 中内存子系统中 MM Compact 时所涉及到的迁移，Compact 的迁移是为了能够得到更多连续的空闲物理页，迁移时没有指定的源/目的地址。而这里提到的 Migrate 更像是一个 DMA 操作，有地址目标、大小等，而且不仅仅发生在系统内存中。 Xe 驱动中的 Migrate 通过 Intel GPU 硬件中模块实现，它一般被称之为`C&amp;hellip;">
+<meta name="twitter:image" content="/images/avatar.png">
+</head>
+
+    <body>
+
+        <script>
+    (function () {
+        const getSystemTheme = () => {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                return 'dark';
+            }
+            return 'light';
+        };
+
+        const configDefault = 'dark';
+        const savedTheme = localStorage.getItem('theme');
+        const theme = savedTheme || configDefault || getSystemTheme();
+
+        if (theme === 'dark') {
+            document.body.classList.add('dark-theme');
+        }
+
+        if (!savedTheme) {
+            localStorage.setItem('theme', theme);
+        }
+    })();
+</script>
+<header class="mod-head">
+    <div class="mod-head__left">
+        <div class="mod-head__logo">
+            <a href="/">
+                
+                
+                    <img class="avatar" alt="avatar" src="/images/avatar.png">
+                
+            </a>
+        </div>
+    </div>
+
+    <div class="mod-head__right">
+        <span>
+            <button id="theme-toggle-sun" class="tiptap-button theme-toggle-sun" aria-label="Switch to dark mode">
+                <svg width="18" height="18" class="tiptap-button-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 1C12.5523 1 13 1.44772 13 2V4C13 4.55228 12.5523 5 12 5C11.4477 5 11 4.55228 11 4V2C11 1.44772 11.4477 1 12 1Z" fill="currentColor"></path>
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M7 12C7 9.23858 9.23858 7 12 7C14.7614 7 17 9.23858 17 12C17 14.7614 14.7614 17 12 17C9.23858 17 7 14.7614 7 12ZM12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9Z" fill="currentColor"></path>
+                    <path d="M13 20C13 19.4477 12.5523 19 12 19C11.4477 19 11 19.4477 11 20V22C11 22.5523 11.4477 23 12 23C12.5523 23 13 22.5523 13 22V20Z" fill="currentColor"></path>
+                    <path d="M4.22282 4.22289C4.61335 3.83236 5.24651 3.83236 5.63704 4.22289L7.04704 5.63289C7.43756 6.02341 7.43756 6.65658 7.04704 7.0471C6.65651 7.43762 6.02335 7.43762 5.63283 7.0471L4.22282 5.6371C3.8323 5.24658 3.8323 4.61341 4.22282 4.22289Z" fill="currentColor"></path>
+                    <path d="M18.367 16.9529C17.9765 16.5623 17.3433 16.5623 16.9528 16.9529C16.5623 17.3434 16.5623 17.9766 16.9528 18.3671L18.3628 19.7771C18.7533 20.1676 19.3865 20.1676 19.777 19.7771C20.1675 19.3866 20.1675 18.7534 19.777 18.3629L18.367 16.9529Z" fill="currentColor"></path>
+                    <path d="M1 12C1 11.4477 1.44772 11 2 11H4C4.55228 11 5 11.4477 5 12C5 12.5523 4.55228 13 4 13H2C1.44772 13 1 12.5523 1 12Z" fill="currentColor"></path>
+                    <path d="M20 11C19.4477 11 19 11.4477 19 12C19 12.5523 19.4477 13 20 13H22C22.5523 13 23 12.5523 23 12C23 11.4477 22.5523 11 22 11H20Z" fill="currentColor"></path>
+                    <path d="M7.04704 16.9529C7.43756 17.3434 7.43756 17.9766 7.04704 18.3671L5.63704 19.7771C5.24651 20.1676 4.61335 20.1676 4.22282 19.7771C3.8323 19.3866 3.8323 18.7534 4.22283 18.3629L5.63283 16.9529C6.02335 16.5623 6.65651 16.5623 7.04704 16.9529Z" fill="currentColor"></path>
+                    <path d="M19.777 5.6371C20.1675 5.24657 20.1675 4.61341 19.777 4.22289C19.3865 3.83236 18.7533 3.83236 18.3628 4.22289L16.9528 5.63289C16.5623 6.02341 16.5623 6.65658 16.9528 7.0471C17.3433 7.43762 17.9765 7.43762 18.367 7.0471L19.777 5.6371Z" fill="currentColor"></path>
+                </svg>
+            </button>
+            <button id="theme-toggle-moon" class="tiptap-button theme-toggle-moon" aria-label="Switch to light mode">
+                <svg width="18" height="18" class="tiptap-button-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C10.0222 2 8.08879 2.58649 6.4443 3.6853C4.79981 4.78412 3.51809 6.3459 2.76121 8.17317C2.00433 10.0004 1.8063 12.0111 2.19215 13.9509C2.578 15.8907 3.53041 17.6725 4.92894 19.0711C6.32746 20.4696 8.10929 21.422 10.0491 21.8079C11.9889 22.1937 13.9996 21.9957 15.8268 21.2388C17.6541 20.4819 19.2159 19.2002 20.3147 17.5557C21.4135 15.9112 22 13.9778 22 12C22 11.5955 21.7564 11.2309 21.3827 11.0761C21.009 10.9213 20.5789 11.0069 20.2929 11.2929C19.287 12.2988 17.9226 12.864 16.5 12.864C15.0774 12.864 13.713 12.2988 12.7071 11.2929C11.7012 10.287 11.136 8.92261 11.136 7.5C11.136 6.07739 11.7012 4.71304 12.7071 3.70711C12.9931 3.42111 13.0787 2.99099 12.9239 2.61732C12.7691 2.24364 12.4045 2 12 2ZM7.55544 5.34824C8.27036 4.87055 9.05353 4.51389 9.87357 4.28778C9.39271 5.27979 9.13604 6.37666 9.13604 7.5C9.13604 9.45304 9.91189 11.3261 11.2929 12.7071C12.6739 14.0881 14.547 14.864 16.5 14.864C17.6233 14.864 18.7202 14.6073 19.7122 14.1264C19.4861 14.9465 19.1295 15.7296 18.6518 16.4446C17.7727 17.7602 16.5233 18.7855 15.0615 19.391C13.5997 19.9965 11.9911 20.155 10.4393 19.8463C8.88743 19.5376 7.46197 18.7757 6.34315 17.6569C5.21447 16.538 4.4624 15.1126 4.15372 13.5607C3.84504 12.0089 4.00347 10.4003 4.60897 8.93853C5.21447 7.47672 6.23985 6.22729 7.55544 5.34824Z" fill="currentColor"></path>
+                    <path d="M19 2C19.5523 2 20 2.44772 20 3V4H21C21.5523 4 22 4.44772 22 5C22 5.55228 21.5523 6 21 6H20V7C20 7.55228 19.5523 8 19 8C18.4477 8 18 7.55228 18 7V6H17C16.4477 6 16 5.55228 16 5C16 4.44772 16.4477 4 17 4H18V3C18 2.44772 18.4477 2 19 2Z" fill="currentColor"></path>
+                </svg>
+            </button>
+        </span>
+    </div>
+</header>
+<!-- <a href="#" id="back-to-top" style="display: inline;"> ^ </a> -->
+
+            <article class="mod-post mod-post__type-post">
+                <header>
+                    <h1 class="mod-post__title">
+                        Intel Discrete GPU - Memory - Migrate
+                    </h1>
+                </header>
+
+                <div class="mod-post__meta">
+                    <time datetime="2024-12-05">
+                        2024-12-05
+                    </time> • 6 分钟阅读 •
+                        
+                            <a href="/tag/intel gpu/">
+                                intel gpu
+                            </a>
+                            
+                                    
+                </div>
+
+
+
+                <div class="mod-post__entry wzulli">
+                    
+                            <p>说到 Migrate，我们可能最开始想到 Kernel 中内存子系统中 MM Compact 时所涉及到的迁移，Compact 的迁移是为了能够得到更多连续的空闲物理页，迁移时没有指定的源/目的地址。而这里提到的 Migrate 更像是一个 DMA 操作，有地址目标、大小等，而且不仅仅发生在系统内存中。</p>
+<p>Xe 驱动中的 Migrate 通过 Intel GPU 硬件中模块实现，它一般被称之为<code>Copy Engine</code>或<code>Blit Engine(Block Image Transfer)</code>，它能够完成的内存迁移操作可以在系统内存内部、系统内存与独立显存之间、独立显存内部；</p>
+<p>Xe Migrate 的全局初始化通过<code>xe_migrate_init</code>完成，当一个 APP 的显存涉及到迁移时，Migrate 将介入其中，每个 APP 在 GPU 侧均有对应的 VM 来管理地址空间，Migrate 迁移显存时将会切换至其对应的指令 Queue 和地址空间 VM，而这些前置准备工作均由 init 来完成，</p>
+<p>其中的核心流程即大致如下，</p>
+<pre><code class="language-c++">struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
+{
+    ...
+    vm = xe_vm_create(xe, XE_VM_FLAG_MIGRATION |
+              XE_VM_FLAG_SET_TILE_ID(tile));
+    ...
+    xe_migrate_prepare_vm(tile, m, vm);
+    ...
+    xe_exec_queue_create_class(xe, primary_gt, vm,
+                          XE_ENGINE_CLASS_COPY,
+                          EXEC_QUEUE_FLAG_KERNEL |
+                          EXEC_QUEUE_FLAG_PERMANENT, 0);
+    ...
+}
+</code></pre>
+<p>其中最为关键的操作是通过<code>xe_migrate_prepare_vm</code>搭建上述 VM 所需要的页表结构，</p>
+<p>Migrate 的范围包含系统内存和独立显存，所以这个页表结构会稍微复杂些，对应的 PTE 要指向这些显存位置；</p>
+<p><code>xe_migrate_prepare_vm</code>的整体实现过程比较晦涩，乍一开始看它的实现时说实施是抵触的，里面涉及个多个 PDE/PTE Entry 的构建与对应 Offset 的写入，阅读这块代码时，建议一边看一边将页表的结构记录下来，便于理解；</p>
+<p>我来简单概述下这里相关的几个要点，</p>
+<ul>
+<li>
+<p>在每个 VM 地址空间的创建之初，会默认分配一个 Root 页表作为 PGD，它在代码中叫做 pt_root，当然 Migrate VM 也不例外；</p>
+</li>
+<li>
+<p>Migrate 采用<code>NUM_PT_SLOTS</code>(默认 32) 个页表作为其操作显存迁移时的页表结构，其中有普通的显存拷贝映射时使用的用途，也有作为基础页表使用时的用途；以 DG1 GPU 为例的话，页表映射最大支持三级，还有<code>VRAM_IDENTITY_MAP_COUNT</code>(默认 2) 个页表用来作为独立显存的 IDENTITY 映射，那么将有五个页表作为基础页表的使用，它们是页面 27-31；</p>
+</li>
+<li>
+<p>IDENTITY 页表由 30、31 组成，页面 31 用来做<code>compressed pat</code>场景使用，所以一般情况只下用到 30 一个页面，通过<code>xe_migrate_program_identity</code>完成映射，注意这里的是以 1G PTE 的粒度来映射大部分独立显存，最高 1G 地址空间的独立显存由于某些使用场景的特殊性，是采用 2M PTE 粒度来映射的。另外 IDENTITY 的映射 Offset 为 256；</p>
+</li>
+</ul>
+<p>基于以上构建过程，现在 Migrate 所需的页表结构已建立完成，大致如下所示，</p>
+<p><img src="https://zackaryliu.github.io/post-images/intel_gpu/migrate/global_pagetable.png" alt="" /></p>
+<h3 id="heading">使用场景</h3>
+<p>实际上 Migrate 不仅仅用于普通显存的迁移使用，在 Xe 驱动的实现中，有些 GPU 页表异步更新动作也通过它来完成，下面我们分别来介绍下这两种使用场景。</p>
+<h4 id="heading-1">显存迁移</h4>
+<p>显存迁移的核心在<code>xe_migrate_copy</code>中实现，上面我们提到过，显存迁移时的源或目的空间皆可以是系统内存或独立显存，我们需要知道的是，如何用刚刚搭建好的页表结构来完成显存迁移。</p>
+<p>我们以一块显存从独立显存 Migrate 到系统内存的场景为例来看一下需要经过哪些流程，</p>
+<ul>
+<li>
+<p>确认每次迁移的大小，在独立显存中通常为默认<code>MAX_PREEMPTDISABLE_TRANSFER</code>(8M) 大小，再根据每个最后一级页表的映射空间<code>LEVEL0_PAGE_TABLE_ENCODE_SIZE</code>(2M) ，确定到单次所需要使用到的页面数<code>avail_pts</code>；</p>
+</li>
+<li>
+<p>源/目的地址分别通过<code>pte_update_size</code>来计算好源/目的地址的虚拟地址 VA，虚拟地址的设定将涉及两种情况，</p>
+<ul>
+<li>
+<p>地址空间为系统内存，通过<code>xe_migrate_vm_addr</code>计算出 VA，</p>
+<pre><code class="language-c++">static u64 xe_migrate_vm_addr(u64 slot, u32 level)
+{
+    /* First slot is reserved for mapping of PT bo and bb, start from 1 */
+    return (slot + 1ULL) &lt;&lt; xe_pt_shift(level + 1);
+}
+</code></pre>
+<ul>
+<li>这里 slot 通过<code>pt_ofs</code>参数指定，计算方式值得思考一下，其实是 Migrate 页表结构的一个运用，slot + 1 再外加 shift 意味着 28 号页面的第 1 个 entry 开始设定 VA</li>
+</ul>
+</li>
+<li>
+<p>地址空间为独立显存，通过<code>xe_migrate_vram_ofs</code>计算出 VA</p>
+<pre><code class="language-c++">static u64 xe_migrate_vram_ofs(struct xe_device *xe, u64 addr, bool is_comp_pte)
+{
+    u64 identity_offset = IDENTITY_OFFSET;
+    ...
+    addr -= xe-&gt;mem.vram.dpa_base;
+    return addr + (identity_offset &lt;&lt; xe_pt_shift(2));
+}
+</code></pre>
+<ul>
+<li>这里比系统内存的 VA 更容易理解，拿到<code>IDENTITY_OFFSET</code>(256) 外加 shift 后，即为独立显存的 IDENTITY 映射空间，VA 与独立显存 PA 一致</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p>通过<code>xe_bb_new</code>创建迁移指令队列；</p>
+</li>
+<li>
+<p>通过<code>emit_pte</code>做迁移地址在页表结构中的 PTE 填充，填充动作是通过 GPU 的<code>MI_STORE_DATA_IMM</code>指令实现，物理地址为独立显存 PA 或经过 IOMMU 映射过系统内存后取得的 IPA；</p>
+</li>
+<li>
+<p>向 GPU 的迁移命令队列中通过<code>emit_copy</code>插入最终的迁移指令，对应的指令为<code>XY_FAST_COPY_BLT_CMD</code>，源/目的地址和迁移大小均在指令后追加；</p>
+</li>
+</ul>
+<h4 id="heading-2">页表更新</h4>
+<p>页表更新动作体现在<code>xe_migrate_update_pgtables</code>中，其中包含借助 CPU 更新和借助 GPU 更新，CPU 更新时可以立即将页表写入内存，但前提是页表更新时 GPU 没有访问对应 APP 地址空间的依赖，否则将通过 GPU 来更新。</p>
+<p>Migrate 的使用场景对应于 GPU 更新页表，主要实现函数为<code>__xe_migrate_update_pgtables</code>，页表所需更新的内容已在显存 MAP 时存储至<code>pt_update_ops</code>结构中（可以看下 MAP 篇文章回忆下），<code>pt_update_ops</code>包含多个<code>pt_op</code>，其中<code>num_entries</code>成员代表我们需要更新的页表数，<code>pt_bo</code>成员代表需要更新的页表目标；</p>
+<p>随后需要再根据我们的 GPU 硬件是否为独立显卡决定页表的写入空间，分别看下两种情况，</p>
+<ul>
+<li>集成显卡的情况</li>
+</ul>
+<p>首先需要通过最开始搭建好的 Migrate 全局页表结构衔接上需要更新的页表页面<code>pt_bo</code>，所需使用的页表结构从<code>NUM_KERNEL_PDE</code>这个偏移开始；</p>
+<ul>
+<li>独立显卡的情况</li>
+</ul>
+<p>独立显卡的显存空间因为是 IDENTITY 映射，所以<code>pt_bo</code>映射搭建这一块可以无需考虑</p>
+<p>映射好目标<code>pt_bo</code>，最后一步就是将页表项写入至<code>pt_bo</code>，无论是集成显卡或独立显存，均通过<code>write_pgtable</code>来完成目标项的写入，其实这里与显存迁移时的使用方法极其类似，由于独立显存的 IDENTITY 映射存在偏移，所以针对独立显卡的情况先借助<code>xe_migrate_vram_ofs</code>取得偏移。最后通过 GPU 的<code>MI_STORE_DATA_IMM</code>指令完成页表项的写入。</p>
+
+                </div>
+
+            </article>
+
+
+            
+                
+	<div class="mod-post__foot">
+	 文章标签: 
+     
+        <a href="/tag/intel gpu/">intel gpu</a>
+     
+     </br>
+	</div>
+
+                    
+
+                        <div class="mod-post__poster">
+                        </div>
+
+                        </div>
+
+                        
+                            
+<br>
+
+<div style="margin-bottom: 10px;">
+    上一篇 : <a href="/post/intel-discrete-gpu-memory-evict-swap/">Intel Discrete GPU - Memory - Evict / Swap</a>
+</div>
+
+
+
+<div style="margin-bottom: 40px;">
+    下一篇 : <a href="/post/intel-discrete-gpu-memory-map-page-fault/">Intel Discrete GPU - Memory - Map / Page Fault</a>
+</div>
+
+
+</div>	
+
+                                
+
+                                    
+                                        <!-- Reading Progress Component -->
+<div class="reading-progress-container">
+  <span class="reading-label">阅读进度</span>
+  <span class="reading-value">0%</span>
+  <svg class="progress-ring" viewBox="0 0 24 24">
+    <!-- Background Circle -->
+    <circle class="progress-ring__circle-bg" stroke-width="3" fill="transparent" r="10" cx="12" cy="12" />
+    <!-- Progress Circle -->
+    <circle class="progress-ring__circle" stroke-width="3" fill="transparent" r="10" cx="12" cy="12" />
+  </svg>
+</div>
+                                            <footer id="footer" class="footer">
+    <nav>
+        
+            
+                    <a class="menu-item" href="/">
+                        首页
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/post">
+                        博客
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/memos">
+                        闪念
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/archives">
+                        归档
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/tags">
+                        标签
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/links">
+                        友链
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/post/about">
+                        关于
+                    </a>
+                    
+    </nav>
+
+    <div class="Copyright">Copyright &copy; 2026 <a href="https://deepkernel.cn">
+                Deep Kernel
+            </a></div>
+
+    <div class="index_footer">
+        欢迎关注微信公众号：DeepKernel ·
+            <a class="rss" href="/feed.xml" target="_blank" rel="noopener noreferrer">
+                <i class="ri-rss-line"></i> RSS
+            </a>
+    </div>
+</footer>
+
+
+
+
+    <script>console.log("\n%c ✦ Gridea Pro v1.1.1 %c · Theme: amore v1.1.0 · https://gridea.pro %c\n","color:#fadfa3;background:#111111;padding:9px 14px;border-radius:4px 0 0 4px;font-weight:500;font-size:12px","color:#e05c00;background:#fff3ec;padding:9px 14px;border-radius:0 4px 4px 0;font-size:11px","")</script>
+</body>
+
+    </html>

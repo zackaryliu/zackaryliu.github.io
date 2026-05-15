@@ -1,0 +1,553 @@
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=0, width=device-width" />
+    <meta name="renderer" content="webkit">
+    <meta name="format-detection" content="telephone=no, email=no, address=no">
+
+    <meta name="generator" content="Gridea Pro 1.1.1">
+    <title>PicoClaw - 从免费的本地“皮皮虾”开始养起 | Deep Kernel</title>
+
+    
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#292a2d" media="(prefers-color-scheme: dark)">
+
+    
+    <link rel="shortcut icon" href="/media/images/favicon.ico">
+<link rel="stylesheet" href="/styles/main.min.css">
+
+    
+    <style>:root{--accent-color:#28df99;}</style>
+    
+
+    <script>
+    // 自动为所有 target="_blank" 的链接添加 rel="noopener noreferrer"
+    document.addEventListener('DOMContentLoaded', function() {
+        var links = document.querySelectorAll('a[target="_blank"]');
+        links.forEach(function(link) {
+            var rel = link.getAttribute('rel') || '';
+            if (rel.indexOf('noopener') === -1) {
+                rel += ' noopener';
+            }
+            if (rel.indexOf('noreferrer') === -1) {
+                rel += ' noreferrer';
+            }
+            link.setAttribute('rel', rel.trim());
+        });
+    });
+</script>
+
+
+
+    <script>
+    // declaraction of document.ready() function.
+    (function () {
+        var ie = !!(window.attachEvent && !window.opera);
+        var wk = /webkit\/(\d+)/i.test(navigator.userAgent) && (RegExp.$1 < 525);
+        var fn = [];
+        var run = function () {
+            for (var i = 0; i < fn.length; i++) fn[i]();
+        };
+        var d = document;
+        d.ready = function (f) {
+            if (!ie && !wk && d.addEventListener)
+                return d.addEventListener('DOMContentLoaded', f, false);
+            if (fn.push(f) > 1) return;
+            if (ie)
+                (function () {
+                    try {
+                        d.documentElement.doScroll('left');
+                        run();
+                    } catch (err) {
+                        setTimeout(arguments.callee, 0);
+                    }
+                })();
+            else if (wk)
+                var t = setInterval(function () {
+                    if (/^(loaded|complete)$/.test(d.readyState))
+                        clearInterval(t), run();
+                }, 0);
+        };
+    })();
+
+
+    document.ready(
+        function () {
+            var _Blog = window._Blog || {};
+
+            const getSystemTheme = () => {
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    return 'dark';
+                }
+                return 'light';
+            };
+
+            const configDefault = 'dark';
+            const currentTheme = window.localStorage && window.localStorage.getItem('theme');
+            const initialTheme = currentTheme || configDefault || getSystemTheme();
+            const isDark = initialTheme === 'dark';
+
+            const updateButtons = (dark) => {
+                const sunBtn = document.getElementById("theme-toggle-sun");
+                const moonBtn = document.getElementById("theme-toggle-moon");
+                const mobileSunBtn = document.getElementById("mobile-theme-toggle-sun");
+                const mobileMoonBtn = document.getElementById("mobile-theme-toggle-moon");
+
+                if (dark) {
+                    if (sunBtn) sunBtn.style.display = 'none';
+                    if (moonBtn) moonBtn.style.display = 'inline-block';
+                    if (mobileSunBtn) mobileSunBtn.style.display = 'none';
+                    if (mobileMoonBtn) mobileMoonBtn.style.display = 'inline-block';
+                } else {
+                    if (sunBtn) sunBtn.style.display = 'inline-block';
+                    if (moonBtn) moonBtn.style.display = 'none';
+                    if (mobileSunBtn) mobileSunBtn.style.display = 'inline-block';
+                    if (mobileMoonBtn) mobileMoonBtn.style.display = 'none';
+                }
+            };
+
+            const updateThemeColor = (dark) => {
+                const themeColor = dark ? '#292a2d' : '#ffffff';
+                const metaTags = document.querySelectorAll('meta[name="theme-color"]');
+                if (metaTags.length > 0) {
+                    // 保留第一个，移除其他的，避免重复
+                    for (let i = 1; i < metaTags.length; i++) {
+                        metaTags[i].remove();
+                    }
+                    metaTags[0].setAttribute('content', themeColor);
+                    metaTags[0].removeAttribute('media');
+                } else {
+                    const meta = document.createElement('meta');
+                    meta.name = 'theme-color';
+                    meta.content = themeColor;
+                    document.head.appendChild(meta);
+                }
+            };
+
+            const applyTheme = (dark) => {
+                const body = document.getElementsByTagName('body')[0];
+                if (dark) {
+                    body.classList.add('dark-theme');
+                } else {
+                    body.classList.remove('dark-theme');
+                }
+                updateButtons(dark);
+                updateThemeColor(dark);
+            };
+
+            // Initial application
+            applyTheme(isDark);
+            if (!currentTheme) {
+                window.localStorage && window.localStorage.setItem('theme', initialTheme);
+            }
+
+            _Blog.toggleTheme = function () {
+                const toggleFunc = (e) => {
+                    // Prevent bubbling if needed, though buttons are distinct now
+                    if (e) e.stopPropagation();
+
+                    const body = document.getElementsByTagName('body')[0];
+                    const isCurrentlyDark = body.classList.contains('dark-theme');
+
+                    if (isCurrentlyDark) {
+                        body.classList.remove('dark-theme');
+                        updateButtons(false);
+                        window.localStorage && window.localStorage.setItem('theme', 'light');
+                    } else {
+                        body.classList.add('dark-theme');
+                        updateButtons(true);
+                        window.localStorage && window.localStorage.setItem('theme', 'dark');
+                    }
+                };
+
+                const sunBtn = document.getElementById("theme-toggle-sun");
+                const moonBtn = document.getElementById("theme-toggle-moon");
+                const mobileSunBtn = document.getElementById("mobile-theme-toggle-sun");
+                const mobileMoonBtn = document.getElementById("mobile-theme-toggle-moon");
+
+                if (sunBtn) sunBtn.addEventListener('click', toggleFunc);
+                if (moonBtn) moonBtn.addEventListener('click', toggleFunc);
+                if (mobileSunBtn) mobileSunBtn.addEventListener('click', toggleFunc);
+                if (mobileMoonBtn) mobileMoonBtn.addEventListener('click', toggleFunc);
+            };
+            _Blog.toggleTheme();
+
+            if (window.matchMedia && !configDefault) {
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+                    const newTheme = e.matches ? 'dark' : 'light';
+                    applyTheme(e.matches);
+                    window.localStorage && window.localStorage.setItem('theme', newTheme);
+                });
+            }
+        }
+    );
+</script>
+
+<script>
+    // Reading Progress Component
+    document.addEventListener('DOMContentLoaded', () => {
+        const progressValue = document.querySelector('.reading-value');
+        const progressCircle = document.querySelector('.progress-ring__circle');
+        const container = document.querySelector('.reading-progress-container');
+
+        // Exit if elements don't exist (e.g., not on a post page)
+        if (!progressValue || !progressCircle || !container) {
+            return;
+        }
+
+        // SVG Circle setup
+        const radius = progressCircle.r.baseVal.value;
+        const circumference = 2 * Math.PI * radius;
+
+        progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+        progressCircle.style.strokeDashoffset = circumference;
+
+        function setProgress(percent) {
+            const safePercent = Math.min(100, Math.max(0, percent));
+            progressValue.textContent = `${Math.round(safePercent)}%`;
+            const offset = circumference - (safePercent / 100) * circumference;
+            progressCircle.style.strokeDashoffset = offset;
+        }
+
+        function onScroll() {
+            const scrollTop = window.scrollY || document.documentElement.scrollTop;
+            const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+
+            if (scrollHeight <= 0) {
+                setProgress(0);
+                return;
+            }
+
+            const scrollPercent = (scrollTop / scrollHeight) * 100;
+            setProgress(scrollPercent);
+
+            // Show/Hide logic: Show if scrolled more than 100px
+            if (scrollTop > 100) {
+                container.classList.add('show');
+            } else {
+                container.classList.remove('show');
+            }
+        }
+
+        // Initialize
+        onScroll();
+
+        // Listen for scroll events
+        window.addEventListener('scroll', onScroll, { passive: true });
+
+        // Recalculate on resize
+        window.addEventListener('resize', onScroll);
+    });
+</script>
+
+
+
+
+    
+
+    
+<meta name="description" content="近段时间“养虾”这件事开始爆火，一大波人开始尝鲜安装 OpenClaw，其中也包含愿意付费请人安装的，可见 Claw 之火热。几周的时间看下来，在用途上面也各式各样，有拿来做自动聊天的、有做单片机自动写程序烧写的，也有用来做炒股看盘的，多种使用场景被大家所探索。 手机端 Claw 也不甘示弱，近期百度和阿里在端侧陆续上线了相关 APP，旨在通过用户指令来操作手机，个人理解是想达成低成本豆包手机的&amp;hellip;">
+<link rel="canonical" href="https://deepkernel.cn/post/picoclaw_launch/">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"PicoClaw - 从免费的本地“皮皮虾”开始养起","url":"https://deepkernel.cn/post/picoclaw_launch/","description":"近段时间“养虾”这件事开始爆火，一大波人开始尝鲜安装 OpenClaw，其中也包含愿意付费请人安装的，可见 Claw 之火热。几周的时间看下来，在用途上面也各式各样，有拿来做自动聊天的、有做单片机自动写程序烧写的，也有用来做炒股看盘的，多种使用场景被大家所探索。 手机端 Claw 也不甘示弱，近期百度和阿里在端侧陆续上线了相关 APP，旨在通过用户指令来操作手机，个人理解是想达成低成本豆包手机的\u0026hellip;","datePublished":"2026-03-15T17:54:17+08:00","dateModified":"2026-05-15T23:22:34+08:00","author":{"@type":"Person","name":"Deep Kernel"},"publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"/images/avatar.png"},"name":"Deep Kernel"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","item":"https://deepkernel.cn","name":"Deep Kernel","position":1},{"@type":"ListItem","item":"https://deepkernel.cn/post/picoclaw_launch/","name":"PicoClaw - 从免费的本地“皮皮虾”开始养起","position":2}]}</script>
+<meta property="og:title" content="PicoClaw - 从免费的本地“皮皮虾”开始养起">
+<meta property="og:description" content="近段时间“养虾”这件事开始爆火，一大波人开始尝鲜安装 OpenClaw，其中也包含愿意付费请人安装的，可见 Claw 之火热。几周的时间看下来，在用途上面也各式各样，有拿来做自动聊天的、有做单片机自动写程序烧写的，也有用来做炒股看盘的，多种使用场景被大家所探索。 手机端 Claw 也不甘示弱，近期百度和阿里在端侧陆续上线了相关 APP，旨在通过用户指令来操作手机，个人理解是想达成低成本豆包手机的&amp;hellip;">
+<meta property="og:url" content="https://deepkernel.cn/post/picoclaw_launch/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Deep Kernel">
+<meta property="og:image" content="/images/avatar.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:url" content="https://deepkernel.cn/post/picoclaw_launch/">
+<meta name="twitter:title" content="PicoClaw - 从免费的本地“皮皮虾”开始养起">
+<meta name="twitter:description" content="近段时间“养虾”这件事开始爆火，一大波人开始尝鲜安装 OpenClaw，其中也包含愿意付费请人安装的，可见 Claw 之火热。几周的时间看下来，在用途上面也各式各样，有拿来做自动聊天的、有做单片机自动写程序烧写的，也有用来做炒股看盘的，多种使用场景被大家所探索。 手机端 Claw 也不甘示弱，近期百度和阿里在端侧陆续上线了相关 APP，旨在通过用户指令来操作手机，个人理解是想达成低成本豆包手机的&amp;hellip;">
+<meta name="twitter:image" content="/images/avatar.png">
+</head>
+
+    <body>
+
+        <script>
+    (function () {
+        const getSystemTheme = () => {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                return 'dark';
+            }
+            return 'light';
+        };
+
+        const configDefault = 'dark';
+        const savedTheme = localStorage.getItem('theme');
+        const theme = savedTheme || configDefault || getSystemTheme();
+
+        if (theme === 'dark') {
+            document.body.classList.add('dark-theme');
+        }
+
+        if (!savedTheme) {
+            localStorage.setItem('theme', theme);
+        }
+    })();
+</script>
+<header class="mod-head">
+    <div class="mod-head__left">
+        <div class="mod-head__logo">
+            <a href="/">
+                
+                
+                    <img class="avatar" alt="avatar" src="/images/avatar.png">
+                
+            </a>
+        </div>
+    </div>
+
+    <div class="mod-head__right">
+        <span>
+            <button id="theme-toggle-sun" class="tiptap-button theme-toggle-sun" aria-label="Switch to dark mode">
+                <svg width="18" height="18" class="tiptap-button-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 1C12.5523 1 13 1.44772 13 2V4C13 4.55228 12.5523 5 12 5C11.4477 5 11 4.55228 11 4V2C11 1.44772 11.4477 1 12 1Z" fill="currentColor"></path>
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M7 12C7 9.23858 9.23858 7 12 7C14.7614 7 17 9.23858 17 12C17 14.7614 14.7614 17 12 17C9.23858 17 7 14.7614 7 12ZM12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9Z" fill="currentColor"></path>
+                    <path d="M13 20C13 19.4477 12.5523 19 12 19C11.4477 19 11 19.4477 11 20V22C11 22.5523 11.4477 23 12 23C12.5523 23 13 22.5523 13 22V20Z" fill="currentColor"></path>
+                    <path d="M4.22282 4.22289C4.61335 3.83236 5.24651 3.83236 5.63704 4.22289L7.04704 5.63289C7.43756 6.02341 7.43756 6.65658 7.04704 7.0471C6.65651 7.43762 6.02335 7.43762 5.63283 7.0471L4.22282 5.6371C3.8323 5.24658 3.8323 4.61341 4.22282 4.22289Z" fill="currentColor"></path>
+                    <path d="M18.367 16.9529C17.9765 16.5623 17.3433 16.5623 16.9528 16.9529C16.5623 17.3434 16.5623 17.9766 16.9528 18.3671L18.3628 19.7771C18.7533 20.1676 19.3865 20.1676 19.777 19.7771C20.1675 19.3866 20.1675 18.7534 19.777 18.3629L18.367 16.9529Z" fill="currentColor"></path>
+                    <path d="M1 12C1 11.4477 1.44772 11 2 11H4C4.55228 11 5 11.4477 5 12C5 12.5523 4.55228 13 4 13H2C1.44772 13 1 12.5523 1 12Z" fill="currentColor"></path>
+                    <path d="M20 11C19.4477 11 19 11.4477 19 12C19 12.5523 19.4477 13 20 13H22C22.5523 13 23 12.5523 23 12C23 11.4477 22.5523 11 22 11H20Z" fill="currentColor"></path>
+                    <path d="M7.04704 16.9529C7.43756 17.3434 7.43756 17.9766 7.04704 18.3671L5.63704 19.7771C5.24651 20.1676 4.61335 20.1676 4.22282 19.7771C3.8323 19.3866 3.8323 18.7534 4.22283 18.3629L5.63283 16.9529C6.02335 16.5623 6.65651 16.5623 7.04704 16.9529Z" fill="currentColor"></path>
+                    <path d="M19.777 5.6371C20.1675 5.24657 20.1675 4.61341 19.777 4.22289C19.3865 3.83236 18.7533 3.83236 18.3628 4.22289L16.9528 5.63289C16.5623 6.02341 16.5623 6.65658 16.9528 7.0471C17.3433 7.43762 17.9765 7.43762 18.367 7.0471L19.777 5.6371Z" fill="currentColor"></path>
+                </svg>
+            </button>
+            <button id="theme-toggle-moon" class="tiptap-button theme-toggle-moon" aria-label="Switch to light mode">
+                <svg width="18" height="18" class="tiptap-button-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C10.0222 2 8.08879 2.58649 6.4443 3.6853C4.79981 4.78412 3.51809 6.3459 2.76121 8.17317C2.00433 10.0004 1.8063 12.0111 2.19215 13.9509C2.578 15.8907 3.53041 17.6725 4.92894 19.0711C6.32746 20.4696 8.10929 21.422 10.0491 21.8079C11.9889 22.1937 13.9996 21.9957 15.8268 21.2388C17.6541 20.4819 19.2159 19.2002 20.3147 17.5557C21.4135 15.9112 22 13.9778 22 12C22 11.5955 21.7564 11.2309 21.3827 11.0761C21.009 10.9213 20.5789 11.0069 20.2929 11.2929C19.287 12.2988 17.9226 12.864 16.5 12.864C15.0774 12.864 13.713 12.2988 12.7071 11.2929C11.7012 10.287 11.136 8.92261 11.136 7.5C11.136 6.07739 11.7012 4.71304 12.7071 3.70711C12.9931 3.42111 13.0787 2.99099 12.9239 2.61732C12.7691 2.24364 12.4045 2 12 2ZM7.55544 5.34824C8.27036 4.87055 9.05353 4.51389 9.87357 4.28778C9.39271 5.27979 9.13604 6.37666 9.13604 7.5C9.13604 9.45304 9.91189 11.3261 11.2929 12.7071C12.6739 14.0881 14.547 14.864 16.5 14.864C17.6233 14.864 18.7202 14.6073 19.7122 14.1264C19.4861 14.9465 19.1295 15.7296 18.6518 16.4446C17.7727 17.7602 16.5233 18.7855 15.0615 19.391C13.5997 19.9965 11.9911 20.155 10.4393 19.8463C8.88743 19.5376 7.46197 18.7757 6.34315 17.6569C5.21447 16.538 4.4624 15.1126 4.15372 13.5607C3.84504 12.0089 4.00347 10.4003 4.60897 8.93853C5.21447 7.47672 6.23985 6.22729 7.55544 5.34824Z" fill="currentColor"></path>
+                    <path d="M19 2C19.5523 2 20 2.44772 20 3V4H21C21.5523 4 22 4.44772 22 5C22 5.55228 21.5523 6 21 6H20V7C20 7.55228 19.5523 8 19 8C18.4477 8 18 7.55228 18 7V6H17C16.4477 6 16 5.55228 16 5C16 4.44772 16.4477 4 17 4H18V3C18 2.44772 18.4477 2 19 2Z" fill="currentColor"></path>
+                </svg>
+            </button>
+        </span>
+    </div>
+</header>
+<!-- <a href="#" id="back-to-top" style="display: inline;"> ^ </a> -->
+
+            <article class="mod-post mod-post__type-post">
+                <header>
+                    <h1 class="mod-post__title">
+                        PicoClaw - 从免费的本地“皮皮虾”开始养起
+                    </h1>
+                </header>
+
+                <div class="mod-post__meta">
+                    <time datetime="2026-03-15">
+                        2026-03-15
+                    </time> • 7 分钟阅读 •
+                        
+                            <a href="/tag/LLM/">
+                                LLM
+                            </a>
+                            
+                                    
+                </div>
+
+
+
+                <div class="mod-post__entry wzulli">
+                    
+                            <p>近段时间“养虾”这件事开始爆火，一大波人开始尝鲜安装 OpenClaw，其中也包含愿意付费请人安装的，可见 Claw 之火热。几周的时间看下来，在用途上面也各式各样，有拿来做自动聊天的、有做单片机自动写程序烧写的，也有用来做炒股看盘的，多种使用场景被大家所探索。</p>
+<p>手机端 Claw 也不甘示弱，近期百度和阿里在端侧陆续上线了相关 APP，旨在通过用户指令来操作手机，个人理解是想达成低成本豆包手机的效果。<br />
+<img src="https://zackaryliu.github.io/post-images/LLM/Claw/PicoClaw/1.png" alt="" /></p>
+<p>作为一名软件研发，对待新事物的兴趣更在于背后原理的探索，而不是单单使用。<br />
+抱着边用边学的态度，直接选择用 OpenClaw 的话，工程过于庞大学习成本高，花费的周期要久一些，不利于入门。<br />
+网上冲浪无意中发现了 <a href="https://github.com/sipeed/picoclaw">PicoLM</a>，一款极轻量的推理引擎，其使用一些 CPU 矢量指令来助力推理加速，在一个十几或几十块的 Arm 或 Risc-v 小单板上就能运行起来，项目 Github 页面中还声称可搭配 <a href="https://github.com/sipeed/picoclaw">PicoClaw</a> 作为助手使用，一下激起了劲头，岂不是同时收获了两个极致轻量项目！</p>
+<h3 id="heading">一、小试牛刀</h3>
+<p>PicoLM 支持一些小体量模型，官方推荐 TinyLlama 1.1B 小模型，按照预想的架构开始着手操练，极致简单的架构如官方所示，<br />
+<img src="https://zackaryliu.github.io/post-images/LLM/Claw/PicoClaw/2.png" alt="" /></p>
+<p>PicoLM 使用 C 语言编写（底软开发者狂喜），PicoClaw 使用 Go 语言编写，二者在编译构建上没有什么难度，参照官方建议命令很快完成，如果你的 Ubuntu 下没有 Go 环境可以去官方 <a href="https://golang.google.cn/dl/">Release</a> 的程序中选一个适合架构的即可。<br />
+构建这么简单，是不是运行起来很容易了？</p>
+<p>不，居然折腾了一天，最后放弃了，主要原因有几点，</p>
+<ul>
+<li>二者生态衔接不完善：虽然都名叫 Pico，但他们并不是出自一人之手，PicoClaw 支持 OpenAI 对接协议，但 PicoLM 当前还不支持，需要以 PicoClaw Spawn PicoLM 进程的形式进行联络。且到目前 cf3f2df 提交时，主线的这种 Spawn 形式也并未支持好，需要打上一个叫 <strong><a href="https://github.com/ghstrider"><u>ghstrider</u></a><u> </u></strong>哥们的  <a href="https://github.com/sipeed/picoclaw/pull/499">feat: add PicoLM local subprocess provider</a> 的补丁才成，其在 PicoClaw 中支持上了 PicoLM Provider. 经测试是有效的，可以打通连接。</li>
+<li>PicoLM 似乎存在自身缺陷：单纯同模型交互时，一般通过控制台 Stdin/Stdout 就可以，但 Claw 与 LLM 交互时，一般需要借助 Json 进行消息封装。但试验下来，PicoLM 启用 Json 后的推理结果不符合预期，简单调试了下没发现问题点，后续有空再看。</li>
+<li>PicoLM 推理效率低：虽说是 Tiny 模型，但 Claw 提交过来的 Sequence 很长，推理一下太慢太慢了，毕竟它是通过 CPU 推理，如果你不是服务器没个几十上百个核，这个时间等不了一点。</li>
+</ul>
+<p>综上，先放弃挣扎 PicoLM，但 PicoClaw 还是要继续用的。</p>
+<h3 id="heading-1">二、回归正轨</h3>
+<p>正式介绍下 PicoClaw</p>
+<blockquote>
+<p>🦐 <a href="https://github.com/sipeed/picoclaw">PicoClaw</a> is an ultra-lightweight personal AI Assistant inspired by <a href="https://github.com/HKUDS/nanobot"><u>nanobot</u></a>, refactored from the ground up in Go through a self-bootstrapping process, where the AI agent itself drove the entire architectural migration and code optimization.<br />
+简单的说，其特点就是：轻量！快速！小巧！</p>
+</blockquote>
+<p>鉴于 PicoLM 拉胯，果断上手 vLLM，它既支持 OpenAI 协议也能推理多个模型，没有什么喷的。使用难度上稍大一些，其环境上依赖 PyTorch 和 CUDA 等，版本兼容性上是比较头疼的，好在官方支持 uv 安装，依赖组件的版本自动选择。</p>
+<p>因本地环境配置不算高，先不上手过大的模型，就以 <a href="https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-AWQ"><strong>Qwen2.5-7B-Instruct-AWQ</strong></a>  为入手点，做些基础的功能应该够用。</p>
+<p>那么当前的环境组合即为，<br />
+<img src="https://zackaryliu.github.io/post-images/LLM/Claw/PicoClaw/3.png" alt="" /><br />
+首先将 vLLM 通过 serve 的方式运行起来，作为后台服务端，<br />
+<img src="https://zackaryliu.github.io/post-images/LLM/Claw/PicoClaw/4.png" alt="" /><br />
+运行成功后会有相应提示（对于低显存的显卡来说运行成功不易：），需要具体参数配置显存的使用限制），</p>
+<pre><code class="language-json">(APIServer pid=33850) INFO:     Started server process [33850]
+(APIServer pid=33850) INFO:     Waiting for application startup.
+(APIServer pid=33850) INFO:     Application startup complete.
+</code></pre>
+<p>此时通过代表推理服务已运行成功，可响应 HTTP 请求。</p>
+<p>其次是启动本文的主角 PicoClaw，</p>
+<p>PicoClaw 的使用上比较简单，有几个核心指令，如 agent 指令下发，skills 的预览与安装等，</p>
+<p><img src="https://zackaryliu.github.io/post-images/LLM/Claw/PicoClaw/5.png" alt="" /><br />
+通过 onboard 指令初始化好环境后，会在指定目录下生成配置文件，用来做与 LLM 间接交互方式指定等，<br />
+在我的环境中，只需要将 vLLM 相关的信息指定好即可，改动如下，</p>
+<pre><code class="language-json"># agents
+&quot;provider&quot;: &quot;local-model&quot;
+&quot;model_name&quot;: &quot;local-model&quot;
+
+# model_list
+&quot;model_name&quot;: &quot;local-model&quot;,
+# model 这里指定为 vllm serve 运行时的参数
+&quot;model&quot;: &quot;vllm/model&quot;,
+&quot;api_base&quot;: &quot;http://localhost:8000/v1&quot;,
+&quot;api_key&quot;: &quot;&quot;
+</code></pre>
+<p>配置完成后，通过 agent 交互形式运行起来 PicoClaw 开启正式体验，</p>
+<p>运行成功后，会提示当前在 Interactive 模式下，<br />
+<img src="https://zackaryliu.github.io/post-images/LLM/Claw/PicoClaw/6.png" alt="" /></p>
+<p>好，前置环境均准备完成，赶快将“皮皮虾”拉出来溜溜吧，</p>
+<h3 id="heading-2">三、正式拉练</h3>
+<p>Claw 的能力在于「问题分析处理」和「命令本地执行」，那我们先来演示个简单的任务好了，</p>
+<p><strong>任务下发</strong>：让“皮皮虾”给我查一下北京今天的天气并存成文本文件放置在某个目录下<br />
+<img src="https://zackaryliu.github.io/post-images/LLM/Claw/PicoClaw/7.png" alt="" /></p>
+<p>“皮皮虾”首先回答出做出的几步内容，然后和你确认是否执行，</p>
+<p>当你告诉它：OK, go ahead. 后，它会执行具体的动作，其中主要涉及到两个 Tool 的调用，分别是 web_fetch 和 write_file，</p>
+<p><img src="https://zackaryliu.github.io/post-images/LLM/Claw/PicoClaw/8.png" alt="" /></p>
+<p>至此，“皮皮虾”的任务就完美执行完成了，查看本地目录中的文件内容与它给出来的结果一致。</p>
+<p>当然，这只是此虾的一点小技能，后续会再继续探索与 APP 端侧的打通，从手机上的「飞书」或「QQ」等应用同虾联络，例如，让它本地文件发给我、让它给我更新个游戏版本等等。</p>
+<h3 id="heading-3">四、涉及命令集</h3>
+<pre><code class="language-shell"># vLLm + pyTorch install
+python3.12 -m venv .venv
+uv pip install vllm --torch-backend=auto
+
+# PicoClaw compile
+make deps
+make build
+
+# Download model
+hf download Qwen/Qwen2.5-7B-Instruct-AWQ --local-dir .
+
+# vLLM launch
+vllm serve --model model --gpu-memory-utilization 0.88 --enable-auto-tool-choice --tool-call-parser llama3_json --max_model_len 10000 --quantization awq --max_num_seqs 1
+
+# PicoClaw launch
+picoclaw agent
+</code></pre>
+<hr />
+<p><strong>文末彩蛋</strong><br />
+作者用的几年前小卡 RTX2060S，和虾的对话过程中，算力、显存的消耗已经接近极限了：）</p>
+<p><img src="https://zackaryliu.github.io/post-images/LLM/Claw/PicoClaw/9.png" alt="" /></p>
+
+                </div>
+
+            </article>
+
+
+            
+                
+	<div class="mod-post__foot">
+	 文章标签: 
+     
+        <a href="/tag/LLM/">LLM</a>
+     
+     </br>
+	</div>
+
+                    
+
+                        <div class="mod-post__poster">
+                        </div>
+
+                        </div>
+
+                        
+                            
+<br>
+
+<div style="margin-bottom: 10px;">
+    上一篇 : <a href="/post/quick-start/">Gridea Pro 完全上手指南 —— 从写作到发布，一篇搞定</a>
+</div>
+
+
+
+<div style="margin-bottom: 40px;">
+    下一篇 : <a href="/post/triton-chu-ti-yan/">Triton 初体验</a>
+</div>
+
+
+</div>	
+
+                                
+
+                                    
+                                        <!-- Reading Progress Component -->
+<div class="reading-progress-container">
+  <span class="reading-label">阅读进度</span>
+  <span class="reading-value">0%</span>
+  <svg class="progress-ring" viewBox="0 0 24 24">
+    <!-- Background Circle -->
+    <circle class="progress-ring__circle-bg" stroke-width="3" fill="transparent" r="10" cx="12" cy="12" />
+    <!-- Progress Circle -->
+    <circle class="progress-ring__circle" stroke-width="3" fill="transparent" r="10" cx="12" cy="12" />
+  </svg>
+</div>
+                                            <footer id="footer" class="footer">
+    <nav>
+        
+            
+                    <a class="menu-item" href="/">
+                        首页
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/post">
+                        博客
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/memos">
+                        闪念
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/archives">
+                        归档
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/tags">
+                        标签
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/links">
+                        友链
+                    </a>
+                    
+             · 
+                    <a class="menu-item" href="/post/about">
+                        关于
+                    </a>
+                    
+    </nav>
+
+    <div class="Copyright">Copyright &copy; 2026 <a href="https://deepkernel.cn">
+                Deep Kernel
+            </a></div>
+
+    <div class="index_footer">
+        欢迎关注微信公众号：DeepKernel ·
+            <a class="rss" href="/feed.xml" target="_blank" rel="noopener noreferrer">
+                <i class="ri-rss-line"></i> RSS
+            </a>
+    </div>
+</footer>
+
+
+
+
+    <script>console.log("\n%c ✦ Gridea Pro v1.1.1 %c · Theme: amore v1.1.0 · https://gridea.pro %c\n","color:#fadfa3;background:#111111;padding:9px 14px;border-radius:4px 0 0 4px;font-weight:500;font-size:12px","color:#e05c00;background:#fff3ec;padding:9px 14px;border-radius:0 4px 4px 0;font-size:11px","")</script>
+</body>
+
+    </html>
