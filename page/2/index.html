@@ -16,7 +16,7 @@
     <meta name="theme-color" content="#292a2d" media="(prefers-color-scheme: dark)">
 
     
-    <link rel="shortcut icon" href="/media/images/favicon.ico">
+    <link rel="shortcut icon" href="/images/theme/favicon.ico">
 <link rel="stylesheet" href="/styles/main.min.css">
 
     
@@ -85,7 +85,7 @@
                 return 'light';
             };
 
-            const configDefault = 'dark';
+            const configDefault = 'light';
             const currentTheme = window.localStorage && window.localStorage.getItem('theme');
             const initialTheme = currentTheme || configDefault || getSystemTheme();
             const isDark = initialTheme === 'dark';
@@ -406,7 +406,7 @@
                         return 'light';
                     };
 
-                    const configDefault = 'dark';
+                    const configDefault = 'light';
                     const savedTheme = localStorage.getItem('theme');
                     const theme = savedTheme || configDefault || getSystemTheme();
 
@@ -443,7 +443,7 @@
 
                             <div class="zuobiao">
                                 <i class="ico_map"></i>
-                                中国 · 深圳
+                                中国 · 北京
                                     <span style="margin-left: 30px">
                                         <!-- Sun (Light Mode) -->
                                         <button id="theme-toggle-sun" class="tiptap-button theme-toggle-sun"
