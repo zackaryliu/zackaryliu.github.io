@@ -1,0 +1,1547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GPU 算力速查台 · 筛选与并排对比</title>
+<style>
+  /* 仅独立预览时生效，粘贴到 Gridea 时无需带上 */
+  body{margin:0;background:#e4f0fd;}
+</style>
+</head>
+<body>
+<!-- ============ Gridea 粘贴区 · 开始（从这里复制到「粘贴区 · 结束」） ============ -->
+<style>
+#gpuLab{
+  --ink:#0f2440;
+  --ink-2:#32496b;
+  --muted:#6b7f9c;
+  --line:#dbe7f7;
+  --line-soft:#eef5ff;
+  --card:#ffffff;
+  --accent:#1e6fe4;
+  --accent-2:#56a3f7;
+  --soft:#eaf3ff;
+  --shadow:0 14px 38px rgba(20,62,116,.10);
+  --shadow-sm:0 6px 18px rgba(20,62,116,.08);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  color:var(--ink);
+  background:
+    radial-gradient(900px 460px at 6% -10%, #d5e7ff 0%, rgba(213,231,255,0) 62%),
+    radial-gradient(760px 420px at 100% 2%, #e2f2ff 0%, rgba(226,242,255,0) 60%),
+    linear-gradient(178deg,#eff7ff 0%,#e5f0fd 58%,#e9f5ff 100%);
+  border-radius:26px;
+  padding:clamp(18px,2.6vw,34px) clamp(14px,2.6vw,34px) 30px;
+  max-width:1180px;
+  margin:0 auto;
+  position:relative;
+  isolation:isolate;
+  -webkit-font-smoothing:antialiased;
+}
+#gpuLab *,#gpuLab *::before,#gpuLab *::after{box-sizing:border-box;}
+#gpuLab a{color:var(--accent);text-decoration:none;}
+#gpuLab button{font-family:inherit;}
+
+/* ---------- Hero ---------- */
+#gpuLab .gl-hero{position:relative;padding:6px 4px 4px;}
+#gpuLab .gl-hero::before{
+  content:"";position:absolute;right:-60px;top:-70px;width:320px;height:320px;border-radius:50%;
+  background:radial-gradient(circle at 40% 40%, rgba(86,163,247,.30), rgba(86,163,247,0) 66%);
+  filter:blur(2px);z-index:-1;
+}
+#gpuLab .gl-hero::after{
+  content:"";position:absolute;right:24px;top:6px;width:150px;height:96px;z-index:-1;
+  background-image:linear-gradient(rgba(30,111,228,.16) 1px, transparent 1px),linear-gradient(90deg, rgba(30,111,228,.16) 1px, transparent 1px);
+  background-size:15px 15px;
+  -webkit-mask-image:radial-gradient(circle at 60% 40%, #000 0%, transparent 72%);
+  mask-image:radial-gradient(circle at 60% 40%, #000 0%, transparent 72%);
+  opacity:.85;
+}
+#gpuLab .gl-eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:11.5px;letter-spacing:.16em;font-weight:600;color:#4a79b8;
+  background:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.9);
+  padding:5px 12px;border-radius:999px;box-shadow:var(--shadow-sm);
+}
+#gpuLab .gl-eyebrow i{width:6px;height:6px;border-radius:50%;background:#2f8bf5;box-shadow:0 0 0 3px rgba(47,139,245,.18);}
+#gpuLab h1{
+  margin:14px 0 8px;font-size:clamp(30px,4.4vw,46px);line-height:1.12;
+  letter-spacing:-.02em;font-weight:800;
+  background:linear-gradient(100deg,#0c2340 12%,#1a5cb8 62%,#3f8ff0 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+#gpuLab .gl-lead{margin:0;color:var(--ink-2);font-size:14.5px;line-height:1.75;max-width:640px;}
+#gpuLab .gl-stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;}
+#gpuLab .gl-stat{
+  flex:1 1 130px;min-width:118px;background:rgba(255,255,255,.78);
+  border:1px solid rgba(255,255,255,.95);border-radius:16px;padding:12px 15px;
+  box-shadow:var(--shadow-sm);backdrop-filter:blur(8px);
+}
+#gpuLab .gl-stat b{display:block;font-size:26px;line-height:1.1;letter-spacing:-.02em;color:#123a6b;}
+#gpuLab .gl-stat b em{font-style:normal;font-size:11.5px;font-weight:600;color:#5d7999;margin-left:4px;letter-spacing:0;}
+#gpuLab .gl-stat span{display:block;margin-top:3px;font-size:11.5px;color:var(--muted);letter-spacing:.04em;}
+
+/* ---------- 筛选面板 ---------- */
+#gpuLab .gl-panel{
+  margin-top:22px;background:rgba(255,255,255,.82);backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.96);border-radius:20px;
+  box-shadow:var(--shadow);padding:16px 18px 14px;
+}
+#gpuLab .gl-panel-top{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+#gpuLab .gl-search{
+  flex:1 1 260px;display:flex;align-items:center;gap:9px;
+  background:#f5f9ff;border:1px solid #e1ecfa;border-radius:12px;padding:9px 13px;
+  transition:.2s;
+}
+#gpuLab .gl-search:focus-within{border-color:#a8caf5;background:#fff;box-shadow:0 0 0 4px rgba(70,145,240,.12);}
+#gpuLab .gl-search span{color:#7d97b9;font-size:15px;line-height:1;}
+#gpuLab .gl-search input{
+  border:0;background:transparent;outline:none;width:100%;font-size:13.5px;color:var(--ink);
+  font-family:inherit;
+}
+#gpuLab .gl-search input::placeholder{color:#95a9c3;}
+#gpuLab .gl-seg{display:flex;background:#eef5ff;border-radius:11px;padding:3px;gap:2px;}
+#gpuLab .gl-seg button{
+  border:0;background:transparent;color:#5a7391;font-size:13px;padding:7px 16px;border-radius:9px;cursor:pointer;transition:.18s;
+}
+#gpuLab .gl-seg button.on{background:#fff;color:var(--accent);font-weight:600;box-shadow:0 2px 8px rgba(30,111,228,.16);}
+
+#gpuLab .gl-frow{display:flex;align-items:flex-start;gap:10px;margin-top:13px;flex-wrap:wrap;}
+#gpuLab .gl-frow > label{
+  flex:0 0 62px;font-size:12px;color:#5d7a9c;padding-top:7px;letter-spacing:.04em;
+}
+#gpuLab .gl-chips{display:flex;flex-wrap:wrap;gap:7px;flex:1 1 auto;}
+#gpuLab .gl-chip{
+  display:inline-flex;align-items:center;gap:6px;border:1px solid #dbe7f8;background:#fff;
+  color:#45618a;border-radius:999px;padding:6px 13px;font-size:12.5px;line-height:1.2;cursor:pointer;
+  transition:transform .16s, box-shadow .16s, background .16s, border-color .16s;
+}
+#gpuLab .gl-chip:hover{border-color:#a9cbf7;color:#1e6fe4;transform:translateY(-1px);box-shadow:0 6px 14px rgba(30,111,228,.13);}
+#gpuLab .gl-chip.on{
+  background:linear-gradient(135deg,#1e6fe4,#57a4f8);border-color:transparent;color:#fff;
+  box-shadow:0 8px 18px rgba(30,111,228,.28);
+}
+#gpuLab .gl-dot{width:7px;height:7px;border-radius:50%;display:inline-block;box-shadow:0 0 0 1px rgba(255,255,255,.6) inset;}
+#gpuLab .gl-chip.on .gl-dot{background:#fff !important;opacity:.9;}
+
+#gpuLab .gl-ranges{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px;}
+#gpuLab .gl-range{background:#f6faff;border:1px solid #e4effc;border-radius:13px;padding:10px 13px 8px;}
+#gpuLab .gl-range-top{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:#6a80a0;}
+#gpuLab .gl-range-top b{font-size:12.5px;color:#1a4c8c;font-weight:600;}
+#gpuLab .gl-range input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:4px;margin:10px 0 4px;border-radius:4px;
+  background:linear-gradient(90deg,#bfd9fb,#e8f1fd);outline:none;
+}
+#gpuLab .gl-range input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+  background:#fff;border:2px solid var(--accent);box-shadow:0 3px 8px rgba(30,111,228,.35);cursor:pointer;
+}
+#gpuLab .gl-range input[type=range]::-moz-range-thumb{
+  width:13px;height:13px;border-radius:50%;background:#fff;border:2px solid var(--accent);cursor:pointer;
+}
+#gpuLab .gl-panel-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  margin-top:14px;padding-top:12px;border-top:1px dashed #e2ecfa;
+}
+#gpuLab .gl-count{font-size:12.5px;color:#65809f;}
+#gpuLab .gl-count b{color:#1a4c8c;font-size:14px;}
+#gpuLab .gl-reset{
+  border:1px solid #d6e5f8;background:#fff;color:#4b6689;border-radius:10px;
+  font-size:12.5px;padding:7px 14px;cursor:pointer;transition:.18s;
+}
+#gpuLab .gl-reset:hover{border-color:#a9cbf7;color:var(--accent);box-shadow:0 6px 14px rgba(30,111,228,.12);}
+
+/* ---------- 表格 ---------- */
+#gpuLab .gl-section{margin-top:20px;}
+#gpuLab .gl-view{display:none;}
+#gpuLab .gl-view.on{display:block;animation:glFade .28s ease;}
+@keyframes glFade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+#gpuLab .gl-tablewrap{
+  background:#fff;border-radius:20px;box-shadow:var(--shadow);border:1px solid #e8f1fd;overflow:hidden;
+}
+#gpuLab .gl-scroll{overflow-x:auto;}
+#gpuLab .gl-scroll::-webkit-scrollbar{height:8px;}
+#gpuLab .gl-scroll::-webkit-scrollbar-thumb{background:#cfe1f7;border-radius:6px;}
+#gpuLab table.gl-table{width:100%;border-collapse:separate;border-spacing:0;min-width:1010px;font-size:13px;}
+#gpuLab .gl-table thead th{
+  position:sticky;top:0;z-index:3;background:linear-gradient(180deg,#f6faff,#eef6ff);
+  color:#33517b;font-weight:600;font-size:11.8px;letter-spacing:.04em;text-align:left;
+  padding:13px 12px;border-bottom:1px solid #e2edfb;white-space:nowrap;
+}
+#gpuLab .gl-table thead th.gl-sortable{cursor:pointer;user-select:none;}
+#gpuLab .gl-table thead th.gl-sortable:hover{color:var(--accent);}
+#gpuLab .gl-table thead th.on{color:var(--accent);background:linear-gradient(180deg,#eaf4ff,#e2efff);}
+#gpuLab .gl-sort-ic{display:inline-block;margin-left:3px;color:#9db5d4;font-size:10.5px;}
+#gpuLab .gl-table thead th.on .gl-sort-ic{color:var(--accent);}
+#gpuLab .gl-table tbody tr{transition:background .16s;}
+#gpuLab .gl-table tbody tr:hover{background:#f7fbff;}
+#gpuLab .gl-table tbody tr.gl-sel{background:#f0f7ff;}
+#gpuLab .gl-table td{padding:11px 12px;border-bottom:1px solid #f1f7fe;vertical-align:middle;color:#25405f;}
+#gpuLab .gl-table tbody tr:last-child td{border-bottom:0;}
+#gpuLab .gl-table td.gl-cb{padding-left:16px;width:38px;}
+#gpuLab input[type=checkbox]{
+  -webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:5px;
+  border:1.5px solid #c3d6ee;background:#fff;cursor:pointer;position:relative;transition:.16s;vertical-align:middle;
+}
+#gpuLab input[type=checkbox]:hover{border-color:#7fb0ee;}
+#gpuLab input[type=checkbox]:checked{background:linear-gradient(135deg,#1e6fe4,#4a9af7);border-color:transparent;box-shadow:0 3px 8px rgba(30,111,228,.28);}
+#gpuLab input[type=checkbox]:checked::after{
+  content:"";position:absolute;left:4.6px;top:1.4px;width:4px;height:8px;
+  border:2px solid #fff;border-top:0;border-left:0;transform:rotate(42deg);
+}
+#gpuLab input[type=checkbox]:disabled{opacity:.35;cursor:not-allowed;}
+#gpuLab .gl-mname{display:flex;flex-direction:column;gap:2px;min-width:150px;max-width:210px;}
+#gpuLab .gl-mname b{font-size:13.5px;font-weight:700;color:#0f2a4d;letter-spacing:-.01em;}
+#gpuLab .gl-mname span{font-size:11px;color:#8ba0bb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#gpuLab .gl-arch{
+  display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:8px;
+  font-size:11.5px;font-weight:600;white-space:nowrap;
+  color:var(--c);background:color-mix(in srgb, var(--c) 9%, #fff);
+  border:1px solid color-mix(in srgb, var(--c) 22%, #fff);
+}
+#gpuLab .gl-arch i{width:6px;height:6px;border-radius:50%;background:var(--c);}
+#gpuLab .gl-num{white-space:nowrap;}
+#gpuLab .gl-val{display:block;font-size:12.5px;font-variant-numeric:tabular-nums;font-weight:600;color:#1c3f6b;}
+#gpuLab .gl-bar{display:block;width:74px;height:4px;border-radius:3px;background:#eaf2fd;margin-top:5px;overflow:hidden;}
+#gpuLab .gl-bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#8fc0f8,#3d8ef0);}
+#gpuLab .gl-form-tag{font-size:11.5px;color:#5e7899;background:#f3f8ff;border:1px solid #e4effc;border-radius:7px;padding:3px 8px;white-space:nowrap;}
+#gpuLab .gl-mini-btn{
+  border:1px solid #dbe8f9;background:#fff;color:#4a6a93;font-size:11.5px;border-radius:8px;
+  padding:5px 10px;cursor:pointer;transition:.16s;white-space:nowrap;
+}
+#gpuLab .gl-mini-btn:hover{border-color:#a9cbf7;color:var(--accent);background:#f6fbff;}
+#gpuLab tr.gl-detail td{background:#f7fbff;border-bottom:1px solid #e6f0fc;padding:0;}
+#gpuLab .gl-detail-in{padding:14px 20px 16px 56px;display:grid;grid-template-columns:1fr;gap:9px;max-width:980px;}
+#gpuLab .gl-detail-in p{margin:0;font-size:12.5px;line-height:1.85;color:#3d5878;}
+#gpuLab .gl-detail-in .gl-kv{font-size:12px;line-height:1.9;color:#5a7697;}
+#gpuLab .gl-detail-in .gl-kv b{color:#2a4b74;font-weight:600;}
+#gpuLab .gl-empty{text-align:center;padding:46px 20px !important;color:#8ba1bd;font-size:13px;}
+
+/* ---------- 卡片视图 ---------- */
+#gpuLab .gl-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:14px;}
+#gpuLab .gl-card{
+  position:relative;background:#fff;border:1px solid #e8f1fd;border-radius:18px;padding:18px 16px 14px;
+  box-shadow:var(--shadow-sm);transition:.22s;overflow:hidden;
+}
+#gpuLab .gl-card:hover{transform:translateY(-3px);box-shadow:0 18px 38px rgba(20,62,116,.14);border-color:#d2e4f9;}
+#gpuLab .gl-card.gl-sel{border-color:#8dbbf6;box-shadow:0 14px 34px rgba(30,111,228,.18);}
+#gpuLab .gl-card::before{content:"";position:absolute;left:0;top:0;height:4px;width:100%;background:var(--c);}
+#gpuLab .gl-card::after{
+  content:"";position:absolute;right:-40px;top:-40px;width:120px;height:120px;border-radius:50%;
+  background:color-mix(in srgb, var(--c) 9%, transparent);pointer-events:none;
+}
+#gpuLab .gl-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;position:relative;z-index:1;}
+#gpuLab .gl-card-head h3{margin:0;font-size:15.5px;font-weight:750;color:#0f2a4d;letter-spacing:-.01em;line-height:1.35;}
+#gpuLab .gl-card-sub{margin-top:2px;font-size:11px;color:#8ba0bb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px;}
+#gpuLab .gl-card-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;margin:14px 0 12px;}
+#gpuLab .gl-cm{background:#f7fbff;border:1px solid #edf4fd;border-radius:11px;padding:8px 10px 7px;}
+#gpuLab .gl-cm span{display:block;font-size:10.5px;color:#7d94b2;letter-spacing:.04em;}
+#gpuLab .gl-cm b{display:block;font-size:15px;font-weight:700;color:#16406f;font-variant-numeric:tabular-nums;margin-top:1px;}
+#gpuLab .gl-cm b em{font-style:normal;font-size:10px;color:#7d94b2;font-weight:500;margin-left:2px;}
+#gpuLab .gl-card-desc{font-size:11.8px;line-height:1.7;color:#5c7797;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+#gpuLab .gl-card-foot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px dashed #e9f1fb;}
+#gpuLab .gl-card-foot label{display:flex;align-items:center;gap:7px;font-size:11.5px;color:#5c7797;cursor:pointer;}
+#gpuLab .gl-card-foot .gl-year{font-size:12px;color:#8ba0bb;font-variant-numeric:tabular-nums;}
+
+/* ---------- 分布图 ---------- */
+#gpuLab .gl-chart-card{
+  margin-top:20px;background:#fdfeff;border:1px solid #e8f1fd;border-radius:20px;box-shadow:var(--shadow);
+  padding:18px 20px 12px;position:relative;overflow:hidden;
+}
+#gpuLab .gl-chart-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;}
+#gpuLab .gl-chart-head h2{margin:0;font-size:16px;font-weight:700;color:#123a6b;letter-spacing:-.01em;}
+#gpuLab .gl-chart-head p{margin:5px 0 0;font-size:12px;color:#7b90ad;}
+#gpuLab .gl-chart-mobile{display:none;}
+#gpuLab .gl-legend{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+#gpuLab .gl-legend span{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#5f7a9a;}
+#gpuLab .gl-legend i{width:8px;height:8px;border-radius:50%;}
+#gpuLab .gl-chart{position:relative;margin-top:8px;}
+#gpuLab svg.gl-scatter{width:100%;height:auto;display:block;}
+#gpuLab .gl-tip{
+  position:absolute;pointer-events:none;opacity:0;transform:translate(-50%,-118%);
+  background:rgba(14,36,64,.94);color:#fff;padding:8px 11px;border-radius:9px;font-size:11.5px;
+  line-height:1.65;white-space:nowrap;box-shadow:0 10px 24px rgba(10,30,55,.3);transition:opacity .14s;z-index:5;
+}
+#gpuLab .gl-tip b{font-size:12px;display:block;margin-bottom:2px;}
+#gpuLab .gl-tip em{font-style:normal;color:#9fc9ff;}
+
+/* ---------- 底部对比托盘 ---------- */
+#gpuLab .gl-tray{
+  position:relative;z-index:12;margin-top:18px;
+  background:rgba(255,255,255,.92);backdrop-filter:blur(16px);
+  border:1px solid #dce9fa;border-radius:16px;box-shadow:0 16px 36px rgba(20,62,116,.16);
+  padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+}
+#gpuLab .gl-tray-label{font-size:12px;color:#6a84a3;white-space:nowrap;}
+#gpuLab .gl-tray-label b{color:#1a4c8c;}
+#gpuLab .gl-tray-chips{display:flex;gap:7px;flex-wrap:wrap;flex:1 1 auto;}
+#gpuLab .gl-selchip{
+  display:inline-flex;align-items:center;gap:7px;background:#eff7ff;border:1px solid #d6e7fb;
+  border-radius:999px;padding:5px 9px 5px 12px;font-size:12px;color:#22456f;max-width:100%;
+}
+#gpuLab .gl-selchip i{width:7px;height:7px;border-radius:50%;flex:0 0 auto;}
+#gpuLab .gl-selchip button{
+  border:0;background:transparent;color:#8ba0bb;cursor:pointer;font-size:13px;line-height:1;padding:0 2px;
+}
+#gpuLab .gl-selchip button:hover{color:#e05252;}
+#gpuLab .gl-tray-empty{font-size:12px;color:#9bb0c9;}
+#gpuLab .gl-compare-btn{
+  border:0;border-radius:12px;padding:10px 20px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;
+  background:linear-gradient(135deg,#1a63d6,#54a1f8);box-shadow:0 10px 22px rgba(30,111,228,.32);
+  transition:.18s;white-space:nowrap;
+}
+#gpuLab .gl-compare-btn:hover{transform:translateY(-1px);box-shadow:0 14px 28px rgba(30,111,228,.4);}
+#gpuLab .gl-compare-btn:disabled{background:#dbe6f4;color:#8ea4bf;box-shadow:none;cursor:not-allowed;transform:none;}
+#gpuLab .gl-clear{border:0;background:transparent;color:#7d93b0;font-size:12px;cursor:pointer;padding:6px;white-space:nowrap;}
+#gpuLab .gl-clear:hover{color:#e05252;}
+#gpuLab .gl-fab{
+  position:fixed;right:22px;bottom:22px;z-index:9000;display:none;align-items:center;gap:8px;
+  border:0;border-radius:999px;padding:12px 20px;cursor:pointer;
+  background:linear-gradient(135deg,#1a63d6,#4f9ef7);color:#fff;font-size:13px;font-weight:600;
+  box-shadow:0 14px 34px rgba(20,62,116,.34);transition:.2s;
+}
+#gpuLab .gl-fab.on{display:inline-flex;}
+#gpuLab .gl-fab:hover{transform:translateY(-2px);box-shadow:0 18px 40px rgba(20,62,116,.42);}
+#gpuLab .gl-fab b{
+  display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;
+  background:rgba(255,255,255,.24);border-radius:999px;font-size:12px;padding:0 5px;
+}
+#gpuLab .gl-fab::before{content:"⇄";font-size:14px;opacity:.9;}
+
+/* ---------- 对比弹层 ---------- */
+#gpuLab .gl-modal{
+  position:fixed;inset:0;z-index:9990;display:none;align-items:center;justify-content:center;
+  padding:clamp(8px,2vw,26px);background:rgba(10,28,54,.44);backdrop-filter:blur(8px);
+}
+#gpuLab .gl-modal.open{display:flex;animation:glFade .2s ease;}
+#gpuLab .gl-modal-card{
+  width:min(1140px,100%);max-height:93vh;background:#fbfdff;border-radius:22px;overflow:hidden;
+  display:flex;flex-direction:column;box-shadow:0 34px 90px rgba(6,22,44,.42);border:1px solid rgba(255,255,255,.6);
+}
+#gpuLab .gl-modal-head{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:16px 20px;background:linear-gradient(120deg,#ecf5ff,#e2efff 60%,#f0f8ff);
+  border-bottom:1px solid #e0edfb;
+}
+#gpuLab .gl-modal-head h2{margin:0;font-size:17px;font-weight:750;color:#0f2f5b;letter-spacing:-.01em;}
+#gpuLab .gl-modal-head p{margin:3px 0 0;font-size:11.5px;color:#6a86a8;}
+#gpuLab .gl-modal-close{
+  border:1px solid #d5e6fa;background:#fff;color:#4a6b96;width:32px;height:32px;border-radius:10px;
+  cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;transition:.16s;
+}
+#gpuLab .gl-modal-close:hover{background:#fff;color:#e05252;border-color:#f4c3c3;}
+#gpuLab .gl-modal-body{overflow-y:auto;padding:18px 20px 24px;background:linear-gradient(180deg,#fbfdff,#f6faff);}
+#gpuLab .gl-modal-body::-webkit-scrollbar{width:9px;}
+#gpuLab .gl-modal-body::-webkit-scrollbar-thumb{background:#cfdff3;border-radius:6px;}
+
+#gpuLab .gl-cmp-cards{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));}
+#gpuLab .gl-cmp-card{
+  position:relative;background:#fff;border:1px solid #e6f0fc;border-radius:15px;padding:13px 14px 12px;
+  box-shadow:var(--shadow-sm);
+}
+#gpuLab .gl-cmp-card::before{content:"";position:absolute;left:0;top:0;height:3px;width:100%;border-radius:14px 14px 0 0;background:var(--c);}
+#gpuLab .gl-cmp-card .gl-cc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;}
+#gpuLab .gl-cmp-card h3{margin:0;font-size:14px;font-weight:700;color:#0f2c53;line-height:1.35;}
+#gpuLab .gl-cmp-card .gl-cc-arch{font-size:10.5px;color:#7b90ad;margin-top:3px;}
+#gpuLab .gl-cc-remove{border:0;background:transparent;color:#a6b9cf;cursor:pointer;font-size:14px;line-height:1;padding:2px;}
+#gpuLab .gl-cc-remove:hover{color:#e05252;}
+#gpuLab .gl-cc-score{display:flex;align-items:baseline;gap:5px;margin-top:9px;}
+#gpuLab .gl-cc-score b{font-size:23px;font-weight:750;color:var(--c);letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+#gpuLab .gl-cc-score span{font-size:10.5px;color:#8ba0bb;}
+#gpuLab .gl-cc-meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:11px;color:#6b84a4;}
+#gpuLab .gl-cc-meta span b{color:#2a4e7d;font-weight:600;}
+
+#gpuLab .gl-cmp-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 12px;}
+#gpuLab .gl-cmp-tab{
+  border:1px solid #dbe8f8;background:#fff;color:#51708f;font-size:12px;padding:7px 15px;border-radius:999px;cursor:pointer;transition:.16s;
+}
+#gpuLab .gl-cmp-tab:hover{border-color:#a9cbf7;color:var(--accent);}
+#gpuLab .gl-cmp-tab.on{background:linear-gradient(135deg,#1e6fe4,#4f9ef7);border-color:transparent;color:#fff;box-shadow:0 8px 18px rgba(30,111,228,.25);}
+
+#gpuLab .gl-cmp-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:14px;align-items:start;}
+#gpuLab .gl-cmp-panel{background:#fff;border:1px solid #e7f0fd;border-radius:17px;padding:15px 16px;box-shadow:var(--shadow-sm);}
+#gpuLab .gl-cmp-panel h4{margin:0 0 3px;font-size:12.5px;font-weight:700;color:#1b3f6c;letter-spacing:.02em;}
+#gpuLab .gl-cmp-panel .gl-hint{margin:0 0 12px;font-size:10.5px;color:#93a7c2;}
+#gpuLab .gl-insight{
+  display:flex;gap:8px;align-items:flex-start;background:linear-gradient(120deg,#eef7ff,#e7f2ff);
+  border:1px solid #dbeafa;border-radius:11px;padding:9px 12px;margin-bottom:12px;
+  font-size:11.5px;line-height:1.6;color:#2f5687;
+}
+#gpuLab .gl-insight b{color:#1a4c8c;}
+#gpuLab .gl-metric{margin-bottom:14px;transition:opacity .2s,border-color .2s,background .2s;border:1px solid transparent;border-radius:12px;}
+#gpuLab .gl-metric.dim{opacity:.4;}
+#gpuLab .gl-metric.focus{background:#f4faff;border-color:#e2effc;padding:10px 12px;margin-left:-12px;margin-right:-12px;}
+#gpuLab .gl-metric:last-child{margin-bottom:0;}
+#gpuLab .gl-metric-title{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:#7d93b1;letter-spacing:.05em;margin-bottom:7px;}
+#gpuLab .gl-metric-title b{color:#38557a;font-size:11.5px;letter-spacing:0;font-weight:650;}
+#gpuLab .gl-mrow{display:grid;grid-template-columns:92px 1fr 88px;gap:10px;align-items:center;margin-bottom:6px;}
+#gpuLab .gl-mrow .gl-mlabel{font-size:11.5px;color:#41608a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#gpuLab .gl-mrow .gl-mtrack{height:9px;border-radius:6px;background:#eef4fd;overflow:hidden;position:relative;}
+#gpuLab .gl-mrow .gl-mtrack i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--c1),var(--c2));transition:width .5s cubic-bezier(.2,.7,.3,1);}
+#gpuLab .gl-mrow .gl-mtrack.best i{box-shadow:0 0 0 1px rgba(255,255,255,.6) inset, 0 4px 12px rgba(30,111,228,.28);}
+#gpuLab .gl-mrow .gl-mval{font-size:11.5px;text-align:right;color:#31527d;font-variant-numeric:tabular-nums;font-weight:600;}
+#gpuLab .gl-mrow .gl-mval.best{color:#14603f;background:#e7f8ef;border-radius:6px;padding:2px 6px;}
+#gpuLab .gl-mrow .gl-mval.best::before{content:"★ ";font-size:9px;}
+
+#gpuLab .gl-rank{display:flex;flex-direction:column;gap:11px;}
+#gpuLab .gl-rank-row{display:grid;grid-template-columns:20px 1fr;gap:9px;align-items:start;}
+#gpuLab .gl-rank-no{font-size:11px;font-weight:700;color:#8ea6c1;text-align:center;line-height:16px;}
+#gpuLab .gl-rank-row:first-child .gl-rank-no{color:#c9922a;}
+#gpuLab .gl-rank-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+#gpuLab .gl-rank-name{font-size:11.5px;color:#2c4d78;font-weight:600;}
+#gpuLab .gl-rank-score{font-size:12px;font-weight:700;color:#1a4c8c;font-variant-numeric:tabular-nums;}
+#gpuLab .gl-rank-bar{display:block;height:7px;border-radius:5px;background:#eef4fd;overflow:hidden;margin-top:4px;}
+#gpuLab .gl-rank-bar i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--c1),var(--c2));}
+
+#gpuLab .gl-radar-sep{border-top:1px dashed #e3effb;margin:16px 0 12px;}
+#gpuLab .gl-radar-wrap{position:relative;display:flex;justify-content:center;}
+#gpuLab svg.gl-radar{width:100%;max-width:330px;height:auto;}
+#gpuLab .gl-radar-legend{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:6px;}
+#gpuLab .gl-radar-legend span{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:#5f7a9a;}
+#gpuLab .gl-radar-legend i{width:8px;height:8px;border-radius:2px;}
+
+#gpuLab .gl-ptable-wrap{margin-top:14px;background:#fff;border:1px solid #e7f0fd;border-radius:17px;overflow:hidden;box-shadow:var(--shadow-sm);}
+#gpuLab .gl-ptable-wrap h4{margin:0;padding:13px 16px 0;font-size:12.5px;font-weight:700;color:#1b3f6c;}
+#gpuLab .gl-ptable-wrap p{margin:4px 16px 10px;font-size:10.5px;color:#93a7c2;}
+#gpuLab .gl-ptable-scroll{overflow-x:auto;}
+#gpuLab table.gl-ptable{border-collapse:separate;border-spacing:0;width:100%;table-layout:fixed;font-size:12px;}
+#gpuLab .gl-ptable th,#gpuLab .gl-ptable td{padding:9px 12px;border-bottom:1px solid #f0f6fe;text-align:left;white-space:normal;word-break:break-word;}
+#gpuLab .gl-ptable th:first-child{width:104px;}
+#gpuLab .gl-ptable thead th{background:#f5faff;color:#3a5680;font-size:11px;font-weight:600;border-bottom:1px solid #e6effb;position:sticky;top:0;white-space:nowrap;}
+#gpuLab .gl-ptable tbody th{color:#6d84a4;font-weight:500;font-size:11.5px;background:#fbfdff;}
+#gpuLab .gl-ptable td b{color:#1d4270;font-weight:700;font-variant-numeric:tabular-nums;}
+#gpuLab .gl-ptable td.best{background:#effaf3;}
+#gpuLab .gl-ptable td.best b{color:#12704a;}
+#gpuLab .gl-ptable td.gl-wrap{white-space:normal;min-width:150px;}
+#gpuLab .gl-pchip{
+  display:inline-block;font-size:10px;line-height:1.7;padding:0 6px;margin:2px 4px 2px 0;
+  border-radius:6px;background:#f1f7ff;color:#476a97;border:1px solid #e2eefc;font-weight:500;
+}
+#gpuLab .gl-ptable td .gl-arch{font-size:10.5px;}
+
+/* ---------- 页脚 / 提示 ---------- */
+#gpuLab .gl-foot{margin-top:16px;font-size:11px;color:#8299b6;line-height:1.8;text-align:center;}
+#gpuLab .gl-toast{
+  position:fixed;left:50%;bottom:92px;transform:translate(-50%,10px);z-index:9995;
+  background:rgba(15,38,68,.94);color:#fff;font-size:12px;padding:9px 16px;border-radius:10px;
+  opacity:0;pointer-events:none;transition:.22s;box-shadow:0 12px 30px rgba(8,24,46,.3);
+}
+#gpuLab .gl-toast.on{opacity:1;transform:translate(-50%,0);}
+
+
+#gpuLab .gl-vendors{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px;}
+#gpuLab .gl-vtab{display:inline-flex;align-items:center;gap:9px;border:1px solid #dbe7f8;background:rgba(255,255,255,.92);
+  border-radius:14px;padding:9px 15px;font-family:inherit;font-size:13.5px;color:#3f5e88;cursor:pointer;transition:.18s;
+  box-shadow:0 3px 10px rgba(20,62,116,.05);}
+#gpuLab .gl-vtab:hover{transform:translateY(-1px);border-color:#b9d4f5;}
+#gpuLab .gl-vtab.on{background:linear-gradient(135deg,#1e6fe4,#59a6f8);color:#fff;border-color:transparent;
+  box-shadow:0 10px 22px rgba(30,111,228,.26);}
+#gpuLab .gl-vtab b{font-size:11.5px;font-weight:700;background:rgba(20,62,116,.07);border-radius:999px;padding:1px 7px;}
+#gpuLab .gl-vtab.on b{background:rgba(255,255,255,.24);}
+#gpuLab .gl-vtag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;letter-spacing:.2px;
+  color:var(--vc);background:color-mix(in srgb,var(--vc) 9%,#fff);border:1px solid color-mix(in srgb,var(--vc) 22%,#fff);
+  border-radius:8px;padding:2px 7px;white-space:nowrap;}
+#gpuLab .gl-vtag i{width:6px;height:6px;border-radius:50%;background:var(--vc);}
+#gpuLab .gl-srcbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:11px 16px;border-radius:14px;
+  background:rgba(255,255,255,.82);border:1px solid #e2eefc;font-size:12.5px;color:#5b7699;box-shadow:0 4px 14px rgba(23,64,120,.04);}
+#gpuLab .gl-live{width:7px;height:7px;border-radius:50%;background:#2fb37a;box-shadow:0 0 0 3px rgba(47,179,122,.16);flex:0 0 auto;}
+#gpuLab .gl-live.err{background:#e05a5a;box-shadow:0 0 0 3px rgba(224,90,90,.16);}
+#gpuLab .gl-srcbar code{font-family:inherit;background:rgba(30,111,228,.08);color:#1e6fe4;padding:1px 6px;border-radius:6px;font-size:12px;}
+#gpuLab .gl-error{display:none;margin-bottom:16px;padding:18px 20px;border-radius:16px;background:#fff7f4;border:1px solid #fadfd6;color:#8a4a3a;font-size:13px;line-height:1.75;}
+#gpuLab .gl-error b{color:#b93f28;}
+#gpuLab .gl-error p{margin:6px 0 10px;color:#9a6a5c;}
+#gpuLab .gl-filebtn{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;background:#fff;
+  border:1px solid #f0c8b9;color:#b93f28;font-size:12.5px;font-weight:600;cursor:pointer;}
+#gpuLab .gl-filebtn input{display:none;}
+#gpuLab .gl-vendor-td{white-space:nowrap;}
+#gpuLab .gl-tbl-note{margin:10px 4px 0;font-size:11.5px;line-height:1.7;color:#8ba0bb;}
+#gpuLab .gl-card-tags{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px;}
+
+@media (max-width:900px){
+  #gpuLab .gl-cmp-grid{grid-template-columns:1fr;}
+  #gpuLab .gl-detail-in{grid-template-columns:1fr;padding-left:20px;}
+}
+@media (max-width:640px){
+  #gpuLab h1{font-size:29px;}
+  #gpuLab .gl-eyebrow{font-size:10px;letter-spacing:.07em;padding:5px 12px;}
+  #gpuLab .gl-lead{font-size:13px;}
+  #gpuLab .gl-frow > label{flex:0 0 100%;padding-top:0;}
+  #gpuLab .gl-stat{flex:1 1 45%;}
+  #gpuLab .gl-mrow{grid-template-columns:74px 1fr 72px;}
+  #gpuLab .gl-modal-card{max-height:96vh;border-radius:18px;}
+  #gpuLab .gl-modal-body{padding:14px;}
+  #gpuLab .gl-chart{overflow-x:auto;}
+  #gpuLab svg.gl-scatter{min-width:640px;}
+  #gpuLab .gl-chart-mobile{display:block;color:#8ba0bb;font-size:11px;}
+  #gpuLab .gl-compare-btn{flex:1 1 100%;}
+  #gpuLab .gl-tray{padding:10px 12px;}
+  #gpuLab .gl-ranges{grid-template-columns:1fr;}
+}
+</style>
+
+<div id="gpuLab">
+
+  <!-- ===== Hero ===== -->
+  <header class="gl-hero">
+    <span class="gl-eyebrow"><i></i>NVIDIA · AMD · INTEL · 华为昇腾 · 2017 — 2026</span>
+    <h1>AI 算力对比台</h1>
+    <p class="gl-lead">从 Volta 到 Rubin，再到 CDNA4、Gaudi 3 与昇腾 910C，一张表横向看四大厂商的算力、显存、带宽与互联。筛选后可跨厂商混选，最多 6 款并排对比。</p>
+    <div class="gl-stats" id="glStats"></div>
+    <div class="gl-vendors" id="glVendors"></div>
+  </header>
+
+  <!-- ===== 筛选面板 ===== -->
+  <section class="gl-panel">
+    <div class="gl-panel-top">
+      <div class="gl-search">
+        <span>⌕</span>
+        <input id="glSearch" type="text" placeholder="搜索型号、架构或关键词，如 H100 / NVLink / FP4">
+      </div>
+      <div class="gl-seg" id="glSeg">
+        <button data-view="table" class="on">表格</button>
+        <button data-view="cards">卡片</button>
+      </div>
+    </div>
+
+    <div class="gl-frow"><label>架构</label><div class="gl-chips" id="glArchChips"></div></div>
+    <div class="gl-frow"><label>封装</label><div class="gl-chips" id="glFormChips"></div></div>
+    <div class="gl-frow"><label>年份</label><div class="gl-chips" id="glYearChips"></div></div>
+    <div class="gl-frow"><label>精度</label><div class="gl-chips" id="glPrecChips"></div></div>
+
+    <div class="gl-ranges">
+      <div class="gl-range">
+        <div class="gl-range-top"><span>显存下限</span><b id="glVramTxt">0 GB</b></div>
+        <input type="range" id="glVram" min="0" max="288" step="8" value="0">
+      </div>
+      <div class="gl-range">
+        <div class="gl-range-top"><span>FP32 下限</span><b id="glFp32Txt">0 TFLOPS</b></div>
+        <input type="range" id="glFp32" min="0" max="130" step="10" value="0">
+      </div>
+      <div class="gl-range">
+        <div class="gl-range-top"><span>带宽下限</span><b id="glBwTxt">0 GB/s</b></div>
+        <input type="range" id="glBw" min="0" max="22000" step="1000" value="0">
+      </div>
+    </div>
+
+    <div class="gl-panel-foot">
+      <div class="gl-count">当前显示 <b id="glCount">0</b> / <span id="glTotal">0</span> 款 · 数据源 <code>gpu_data_input.csv</code></div>
+      <button class="gl-reset" id="glReset">重置全部筛选</button>
+    </div>
+  </section>
+
+  <div class="gl-srcbar">
+    <span class="gl-live" id="glLive"></span>
+    <span id="glSrcText">正在读取 <code>gpu_data_input.csv</code> …</span>
+    <button class="gl-mini-btn" id="glReload" style="margin-left:auto">重新读取</button>
+  </div>
+
+  <div class="gl-error" id="glErr">
+    <b>没能读到 gpu_data_input.csv</b>
+    <p>如果页面是通过 file:// 双击打开的，浏览器会禁止读取本地文件；请用 Gridea 预览地址或线上 https 地址访问，或先在下面手动选择 CSV。</p>
+    <label class="gl-filebtn">手动选择 CSV 文件<input type="file" id="glFile" accept=".csv,text/csv"></label>
+  </div>
+
+  <!-- ===== 表格视图 ===== -->
+  <section class="gl-section gl-view on" id="glViewTable">
+    <div class="gl-tablewrap">
+      <div class="gl-scroll">
+        <table class="gl-table">
+          <thead>
+            <tr>
+              <th>对比</th>
+              <th class="gl-sortable" data-sort="name">型号<span class="gl-sort-ic">↕</span></th>
+              <th class="gl-sortable" data-sort="vendor">厂商<span class="gl-sort-ic">↕</span></th>
+              <th class="gl-sortable" data-sort="arch">架构<span class="gl-sort-ic">↕</span></th>
+              <th class="gl-sortable" data-sort="year">年份<span class="gl-sort-ic">↕</span></th>
+              <th class="gl-sortable" data-sort="fp32">FP32<span class="gl-sort-ic">↕</span></th>
+              <th class="gl-sortable" data-sort="fp4">FP4<span class="gl-sort-ic">↕</span></th>
+              <th class="gl-sortable" data-sort="vram">显存<span class="gl-sort-ic">↕</span></th>
+              <th class="gl-sortable" data-sort="bw">显存带宽<span class="gl-sort-ic">↕</span></th>
+              <th class="gl-sortable" data-sort="link">互联带宽<span class="gl-sort-ic">↕</span></th>
+              <th>封装</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="glTbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <p class="gl-tbl-note">互联带宽显示「—」表示官方未公布单卡聚合值（AMD Instinct / 昇腾），该项不参与评分；FP4 显示「—」表示该架构不支持。</p>
+  </section>
+
+  <!-- ===== 卡片视图 ===== -->
+  <section class="gl-section gl-view" id="glViewCards">
+    <div class="gl-cards" id="glCards"></div>
+  </section>
+
+  <!-- ===== 分布图 ===== -->
+  <section class="gl-chart-card">
+    <div class="gl-chart-head">
+      <div>
+        <h2>显存 — 带宽 分布</h2>
+        <p>气泡越大代表 FP32 算力越高；点一下气泡即可加入对比，跟随上方筛选实时联动。</p>
+        <p class="gl-chart-mobile">↔ 图表可左右滑动查看完整区域</p>
+      </div>
+      <div class="gl-legend" id="glLegend"></div>
+    </div>
+    <div class="gl-chart" id="glChartWrap">
+      <div class="gl-tip" id="glTip"></div>
+      <svg class="gl-scatter" id="glScatter" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+  </section>
+
+  <!-- ===== 底部托盘 ===== -->
+  <div class="gl-tray" id="glTray">
+    <div class="gl-tray-label">已选对比 <b id="glSelCount">0</b> / 6</div>
+    <div class="gl-tray-chips" id="glTrayChips"><span class="gl-tray-empty">勾选 2–6 款型号（可跨厂商）后开始对比</span></div>
+    <button class="gl-clear" id="glClear">清空</button>
+    <button class="gl-compare-btn" id="glCompareBtn" disabled>开始对比</button>
+  </div>
+
+  <p class="gl-foot">数据源：<code>gpu_data_input.csv</code>（由飞书《GPU 算力速查表（含 H20）》整理，补充 AMD / Intel / 昇腾 公开规格）· 部分数值为推算或参考值，详见型号「名词解释」· 仅供选型参考。只改 CSV 即可更新本页数据。</p>
+
+  <!-- ===== 对比弹层 ===== -->
+  <div class="gl-modal" id="glModal">
+    <div class="gl-modal-card">
+      <div class="gl-modal-head">
+        <div>
+          <h2>并排对比</h2>
+          <p>按算力 / 显存 / 带宽 / 互联四个维度归一化评分，可切换分项查看</p>
+        </div>
+        <button class="gl-modal-close" id="glModalClose">✕</button>
+      </div>
+      <div class="gl-modal-body" id="glModalBody"></div>
+    </div>
+  </div>
+
+  <div class="gl-toast" id="glToast"></div>
+  <button class="gl-fab" id="glFab">对比 <b id="glFabCount">0</b></button>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var DATA = [];
+
+  var ARCH_COLOR = {
+    "Volta":"#5c6fa4",
+    "Turing":"#2f9a9a",
+    "Ampere":"#2f7bf0",
+    "Hopper":"#7b5cf2",
+    "Blackwell":"#0e9a8b",
+    "Blackwell Ultra":"#e0813a",
+    "Rubin":"#d4445f",
+    "CDNA":"#0f766e",
+    "CDNA2":"#0d9488",
+    "CDNA3":"#059669",
+    "CDNA4":"#047857",
+    "Gaudi2":"#6366f1",
+    "Gaudi3":"#4338ca",
+    "达芬奇":"#b45309"
+  };
+
+  var VENDOR_COLOR = {"NVIDIA":"#4d7c0f","AMD":"#c2410c","Intel":"#1d4ed8","华为昇腾":"#b91c1c"};
+
+  var MAX = {fp32:1, fp4:1, vram:1, bw:1, link:1};
+  var PALETTE = ["#2563eb","#0d9488","#8b5cf6","#e0a020","#c026d3","#0e7490"];
+  var PALE = {"#2563eb":["#a8c6ff","#2f6fe4"],"#0d9488":["#9fe3d9","#0f9a8c"],"#8b5cf6":["#d0bdff","#7c4ef0"],
+    "#e0a020":["#ffe0a3","#dc9b17"],"#c026d3":["#f3c4f2","#b32bb8"],"#0e7490":["#b6e4ef","#0b6a84"]};
+
+  var state = {
+    q:"", vendor:"all", archs:[], forms:[], years:[], precs:[],
+    vram:0, fp32:0, bw:0,
+    sortKey:"year", sortDir:-1,
+    view:"table", selected:[], expanded:null, tab:"all", limit:6
+  };
+  var trayVisible = false;
+
+  function $(s){ return document.querySelector(s); }
+  function byId(id){ return document.getElementById(id); }
+  function archTag(a){
+    return '<span class="gl-arch" style="--c:' + (ARCH_COLOR[a] || "#4b6b96") + '"><i></i>' + a + "</span>";
+  }
+  function vendorTag(v){
+    if(!v) return "—";
+    var c = VENDOR_COLOR[v] || "#4b6b96";
+    return '<span class="gl-vtag" style="--vc:' + c + '"><i></i>' + v + "</span>";
+  }
+  function esc(t){ return String(t === null || t === undefined ? "" : t).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;"); }
+  function numOr0(n){ return (n === null || n === undefined) ? 0 : n; }
+  function fmt(n){
+    if(n === null || n === undefined) return "—";
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+  function tbs(n){
+    if(n === null || n === undefined) return "—";
+    var t = n / 1000;
+    return (t >= 10 ? t.toFixed(1) : t.toFixed(2)).replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1") + "T";
+  }
+  function shortNum(n){
+    if(n === null || n === undefined) return "—";
+    if(n >= 1000) return (Math.round(n/100)/10) + "K";
+    return String(Math.round(n));
+  }
+  function barCell(ratio, text, val){
+    if(val === null || val === undefined){
+      return '<span class="gl-val">' + text + "</span>";
+    }
+    var w = Math.max(4, Math.min(100, ratio * 100));
+    return '<span class="gl-val">' + text + '</span><span class="gl-bar"><i style="width:' + w.toFixed(1) + '%"></i></span>';
+  }
+
+  /* ---------- 筛选 ---------- */
+  function filtered(){
+    return DATA.filter(function(d){
+      if(state.q){
+        var hay = (d.name + " " + d.short + " " + d.arch + " " + d.desc + " " + d.deploy + " " + d.precs.join(" ")).toLowerCase();
+        if(hay.indexOf(state.q.toLowerCase()) === -1) return false;
+      }
+      if(state.vendor !== "all" && d.vendor !== state.vendor) return false;
+      if(state.archs.length && state.archs.indexOf(d.arch) === -1) return false;
+      if(state.forms.length && state.forms.indexOf(d.form) === -1) return false;
+      if(state.years.length && state.years.indexOf(d.year) === -1) return false;
+      if(state.precs.length){
+        for(var i=0;i<state.precs.length;i++){
+          if(d.precs.indexOf(state.precs[i]) === -1) return false;
+        }
+      }
+      if(d.vram < state.vram) return false;
+      if(d.fp32 < state.fp32) return false;
+      if(d.bw < state.bw) return false;
+      return true;
+    });
+  }
+  function sorted(list){
+    var k = state.sortKey, dir = state.sortDir;
+    return list.slice().sort(function(a,b){
+      var va = a[k], vb = b[k];
+      if(k === "fp4" || k === "link" || k === "fp32" || k === "bw" || k === "vram"){
+        va = (va === null || va === undefined) ? -1 : va;
+        vb = (vb === null || vb === undefined) ? -1 : vb;
+      }
+      if(k === "name" || k === "arch" || k === "vendor"){ return String(va).localeCompare(String(vb), "zh") * dir; }
+      if(va === vb) return a.year - b.year;
+      return (va > vb ? 1 : -1) * dir;
+    });
+  }
+
+  /* ---------- 头部统计 ---------- */
+  function renderStats(){
+    var vendors = [], maxBw = 0, maxFp32 = 0;
+    DATA.forEach(function(d){
+      if(vendors.indexOf(d.vendor) === -1) vendors.push(d.vendor);
+      if(d.bw !== null && d.bw > maxBw) maxBw = d.bw;
+      if(d.fp32 !== null && d.fp32 > maxFp32) maxFp32 = d.fp32;
+    });
+    byId("glStats").innerHTML =
+      '<div class="gl-stat"><b>' + DATA.length + '</b><span>型号</span></div>' +
+      '<div class="gl-stat"><b>' + vendors.length + '</b><span>厂商</span></div>' +
+      '<div class="gl-stat"><b>' + (maxBw >= 1000 ? (Math.round(maxBw / 100) / 10) : maxBw) + '<em>' + (maxBw >= 1000 ? "TB/s" : "GB/s") + '</em></b><span>峰值显存带宽</span></div>' +
+      '<div class="gl-stat"><b>' + maxFp32 + '<em>TFLOPS</em></b><span>最高 FP32</span></div>';
+  }
+
+  /* ---------- 厂商切换 ---------- */
+  function renderVendors(){
+    var counts = {}, order = [], known = ["NVIDIA","AMD","Intel","华为昇腾"];
+    DATA.forEach(function(d){
+      if(!d.vendor) return;
+      counts[d.vendor] = (counts[d.vendor] || 0) + 1;
+      if(order.indexOf(d.vendor) === -1) order.push(d.vendor);
+    });
+    order = known.filter(function(v){ return counts[v]; }).concat(order.filter(function(v){ return known.indexOf(v) === -1; }));
+    var tabs = [["all","全部厂商", DATA.length]].concat(order.map(function(v){ return [v, v, counts[v]]; }));
+    byId("glVendors").innerHTML = tabs.map(function(t){
+      var c = VENDOR_COLOR[t[0]] || "#1e6fe4";
+      var dot = t[0] === "all" ? "" : '<span style="width:7px;height:7px;border-radius:50%;background:' + c + ';flex:0 0 auto"></span>';
+      return '<button class="gl-vtab' + (state.vendor === t[0] ? " on" : "") + '" data-vendor="' + t[0] + '">' + dot + t[1] + " <b>" + t[2] + "</b></button>";
+    }).join("");
+  }
+
+  function setSource(msg, ok){
+    byId("glSrcText").innerHTML = msg;
+    byId("glLive").classList.toggle("err", !ok);
+  }
+
+  /* ---------- 筛选芯片 ---------- */
+  function chip(type, val, label, color){
+    var dot = color ? '<span class="gl-dot" style="background:' + color + '"></span>' : "";
+    return '<button class="gl-chip" data-chip="' + type + '" data-val="' + val + '">' + dot + label + "</button>";
+  }
+  function buildChips(){
+    var arches = [];
+    DATA.forEach(function(d){ if(arches.indexOf(d.arch) === -1) arches.push(d.arch); });
+    byId("glArchChips").innerHTML = arches.map(function(a){
+      return chip("arch", a, a, ARCH_COLOR[a]);
+    }).join("");
+
+    var forms = [];
+    DATA.forEach(function(d){ if(forms.indexOf(d.form) === -1) forms.push(d.form); });
+    byId("glFormChips").innerHTML = forms.map(function(f){ return chip("form", f, f); }).join("");
+
+    var years = [];
+    DATA.forEach(function(d){ if(years.indexOf(d.year) === -1) years.push(d.year); });
+    years.sort(function(a,b){return a-b;});
+    byId("glYearChips").innerHTML = years.map(function(y){ return chip("year", y, y + " 年"); }).join("");
+
+    byId("glPrecChips").innerHTML =
+      chip("prec","FP4","支持 FP4") + chip("prec","FP8","支持 FP8") + chip("prec","FP64","支持 FP64");
+
+    var vlist = [];
+    DATA.forEach(function(d){ if(vlist.indexOf(d.vendor) === -1) vlist.push(d.vendor); });
+    byId("glLegend").innerHTML = vlist.map(function(v){
+      return '<span><i style="background:' + (VENDOR_COLOR[v] || "#4b6b96") + '"></i>' + v + "</span>";
+    }).join("");
+  }
+
+  /* ---------- 表格 ---------- */
+  function renderTable(list){
+    var body = byId("glTbody");
+    if(!list.length){
+      body.innerHTML = '<tr><td colspan="12" class="gl-empty">没有符合条件的型号，试试放宽筛选条件</td></tr>';
+      return;
+    }
+    var cap = state.limit;
+    body.innerHTML = list.map(function(d){
+      var sel = state.selected.indexOf(d.id) > -1;
+      var dis = !sel && state.selected.length >= cap;
+      var main = '<tr class="gl-row' + (sel ? " gl-sel" : "") + '">' +
+        '<td class="gl-cb"><input type="checkbox" data-check="' + d.id + '"' + (sel ? " checked" : "") + (dis ? " disabled" : "") + "></td>" +
+        '<td><div class="gl-mname"><b>' + d.short + '</b><span title="' + esc(d.deploy) + '">' + esc(d.deploy) + "</span></div></td>" +
+        '<td class="gl-vendor-td">' + vendorTag(d.vendor) + "</td>" +
+        "<td>" + archTag(d.arch) + "</td>" +
+        '<td class="gl-num">' + d.year + "</td>" +
+        '<td class="gl-num">' + barCell(numOr0(d.fp32) / MAX.fp32, d.fp32 === null ? "—" : d.fp32, d.fp32) + "</td>" +
+        '<td class="gl-num">' + barCell(numOr0(d.fp4) / MAX.fp4, d.fp4 === null ? "—" : d.fp4, d.fp4) + "</td>" +
+        '<td class="gl-num">' + barCell(numOr0(d.vram) / MAX.vram, d.vram === null ? "—" : d.vram, d.vram) + "</td>" +
+        '<td class="gl-num">' + barCell(numOr0(d.bw) / MAX.bw, fmt(d.bw), d.bw) + "</td>" +
+        '<td class="gl-num">' + barCell(numOr0(d.link) / MAX.link, d.link === null ? "—" : fmt(d.link), d.link) + "</td>" +
+        '<td><span class="gl-form-tag">' + esc(d.form) + "</span></td>" +
+        '<td><button class="gl-mini-btn" data-detail="' + d.id + '">' + (state.expanded === d.id ? "收起" : "详情") + "</button></td>" +
+        "</tr>";
+      if(state.expanded === d.id){
+        main += '<tr class="gl-detail"><td colspan="12"><div class="gl-detail-in">' +
+          "<p>" + esc(d.desc) + "</p>" +
+          '<div class="gl-kv">' +
+            "<b>厂商：</b>" + esc(d.vendor) + "　<b>封装：</b>" + esc(d.form) + "　<b>部署：</b>" + esc(d.deploy) + "<br>" +
+            "<b>显存：</b>" + esc(d.vramLabel) + "<br>" +
+            "<b>互联：</b>" + esc(d.linkType) + (d.linkLabel ? "（" + esc(d.linkLabel) + "）" : "") + "<br>" +
+            "<b>支持精度：</b>" + d.precs.join(" / ") + "<br>" +
+            "<b>名词解释：</b>" + esc(d.note) + "<br>" +
+            (d.url ? '<b>官方页面：</b><a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.url.replace(/^https?:\/\//,"")) + " ↗</a>" : "") +
+          "</div></div></td></tr>";
+      }
+      return main;
+    }).join("");
+
+    document.querySelectorAll("#gpuLab .gl-table thead th.gl-sortable").forEach(function(th){
+      var on = th.getAttribute("data-sort") === state.sortKey;
+      th.classList.toggle("on", on);
+      var ic = th.querySelector(".gl-sort-ic");
+      if(ic) ic.textContent = on ? (state.sortDir > 0 ? "↑" : "↓") : "↕";
+    });
+  }
+
+  /* ---------- 卡片 ---------- */
+  function renderCards(list){
+    var wrap = byId("glCards");
+    if(!list.length){
+      wrap.innerHTML = '<p class="gl-empty">没有符合条件的型号，试试放宽筛选条件</p>';
+      return;
+    }
+    var cap = state.limit;
+    wrap.innerHTML = list.map(function(d){
+      var sel = state.selected.indexOf(d.id) > -1;
+      var dis = !sel && state.selected.length >= cap;
+      return '<article class="gl-card' + (sel ? " gl-sel" : "") + '" style="--c:' + (ARCH_COLOR[d.arch] || "#4b6b96") + '">' +
+        '<div class="gl-card-head"><div><h3>' + d.short + "</h3>" +
+          '<div class="gl-card-sub" title="' + esc(d.deploy) + '">' + esc(d.deploy) + "</div></div></div>" +
+        '<div class="gl-card-tags">' + vendorTag(d.vendor) + archTag(d.arch) + "</div>" +
+        '<div class="gl-card-metrics">' +
+          '<div class="gl-cm"><span>FP32</span><b>' + fmt(d.fp32) + "<em>TFLOPS</em></b></div>" +
+          '<div class="gl-cm"><span>显存</span><b>' + fmt(d.vram) + "<em>GB</em></b></div>" +
+          '<div class="gl-cm"><span>带宽</span><b>' + (d.bw >= 1000 ? tbs(d.bw).replace("T","") + "<em>TB/s</em>" : fmt(d.bw) + "<em>GB/s</em>") + "</b></div>" +
+          '<div class="gl-cm"><span>FP4 稠密</span><b>' + (d.fp4 === null ? "—" : d.fp4 + "<em>PFLOPS</em>") + "</b></div>" +
+        "</div>" +
+        '<p class="gl-card-desc">' + esc(d.desc) + "</p>" +
+        '<div class="gl-card-foot"><label><input type="checkbox" data-check="' + d.id + '"' + (sel ? " checked" : "") + (dis ? " disabled" : "") + ">加入对比</label><span class=\"gl-year\">" + d.year + " · " + esc(d.form) + "</span></div>" +
+      "</article>";
+    }).join("");
+  }
+
+  function niceX(raw){
+    var target = Math.max(64, raw * 1.12);
+    var p = Math.pow(10, Math.floor(Math.log10(target / 5)));
+    var cands = [1, 2, 2.5, 5, 10];
+    var step = p * 10;
+    for(var i = 0; i < cands.length; i++){
+      if(cands[i] * p >= target / 5){ step = cands[i] * p; break; }
+    }
+    return step * Math.ceil(target / step);
+  }
+
+  /* ---------- 分布图 ---------- */
+  function renderScatter(list){
+    var svg = byId("glScatter");
+    var W = 900, H = 420, padL = 66, padR = 30, padT = 26, padB = 54;
+    if(!list.length){
+      svg.innerHTML = '<text x="' + (W/2) + '" y="' + (H/2) + '" text-anchor="middle" font-size="13" fill="#8aa1bf">暂无可展示的型号</text>';
+      return;
+    }
+    var xMax = 0, yMin = null, yMax = 0;
+    list.forEach(function(d){
+      if(d.vram !== null && d.vram > xMax) xMax = d.vram;
+      if(d.bw !== null){
+        if(yMin === null || d.bw < yMin) yMin = d.bw;
+        if(d.bw > yMax) yMax = d.bw;
+      }
+    });
+    xMax = niceX(xMax);
+    yMin = Math.max(20, (yMin || 20) * 0.7);
+    yMax = (yMax || 1000) * 1.18;
+
+    function X(v){ return padL + (v / xMax) * (W - padL - padR); }
+    function Y(v){ return padT + (1 - (Math.log(v) - Math.log(yMin)) / (Math.log(yMax) - Math.log(yMin))) * (H - padT - padB); }
+
+    var s = '<defs><linearGradient id="glAreaGrad" x1="0" y1="0" x2="0" y2="1">' +
+         '<stop offset="0%" stop-color="#bfe0ff" stop-opacity=".32"/><stop offset="100%" stop-color="#bfe0ff" stop-opacity="0"/></linearGradient></defs>';
+    s += '<rect x="' + padL + '" y="' + padT + '" width="' + (W-padL-padR) + '" height="' + (H-padT-padB) + '" fill="#fbfdff" stroke="#e6f0fc"/>';
+
+    var yTicks = [];
+    for(var e = Math.floor(Math.log10(yMin)); e <= Math.ceil(Math.log10(yMax)); e++){
+      [1, 2, 5].forEach(function(m){
+        var v = m * Math.pow(10, e);
+        if(v >= yMin * 0.98 && v <= yMax * 1.02) yTicks.push(v);
+      });
+    }
+    if(yTicks.length > 8){
+      yTicks = yTicks.filter(function(v){
+        var m = v / Math.pow(10, Math.floor(Math.log10(v)));
+        return Math.abs(m - 1) < 1e-9 || Math.abs(m - 5) < 1e-9;
+      });
+    }
+    yTicks.forEach(function(t){
+      var y = Y(t);
+      s += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (W-padR) + '" y2="' + y.toFixed(1) + '" stroke="#eaf3fd"/>';
+      s += '<text x="' + (padL-12) + '" y="' + (y+4).toFixed(1) + '" text-anchor="end" font-size="11" fill="#8aa1bf">' + shortNum(t) + "</text>";
+    });
+    var xStep = xMax / 5;
+    for(var k=0;k<=5;k++){
+      var xv = xStep * k;
+      var x = X(xv);
+      s += '<line x1="' + x.toFixed(1) + '" y1="' + padT + '" x2="' + x.toFixed(1) + '" y2="' + (H-padB) + '" stroke="#eef5fe"/>';
+      s += '<text x="' + x.toFixed(1) + '" y="' + (H-padB+20) + '" text-anchor="middle" font-size="11" fill="#8aa1bf">' + Math.round(xv) + "</text>";
+    }
+
+    s += '<text x="' + ((W-padR+padL)/2) + '" y="' + (H-12) + '" text-anchor="middle" font-size="11.5" fill="#6f87a6" letter-spacing="1">显存容量 / GB</text>';
+    s += '<text x="18" y="' + ((H-padB+padT)/2) + '" text-anchor="middle" font-size="11.5" fill="#6f87a6" letter-spacing="1" transform="rotate(-90 18 ' + ((H-padB+padT)/2) + ')">显存带宽 / GB/s（对数轴）</text>';
+
+    var seen = {};
+    list.forEach(function(d, i){
+      var key = (d.vram || 0) + "|" + (d.bw || 0);
+      var n = seen[key] || 0;
+      seen[key] = n + 1;
+      var ang = n * 2.399, rad = n ? 16 + (n - 1) * 9 : 0;
+      var cx = X(d.vram || 0) + Math.cos(ang) * rad + ((i % 3) - 1) * 1.6;
+      var cy = Y(d.bw || yMin) + Math.sin(ang) * rad + ((i % 5) - 2) * 0.8;
+      var r = 7 + (numOr0(d.fp32) / MAX.fp32) * 13;
+      var c = VENDOR_COLOR[d.vendor] || "#4b6b96";
+      var sel = state.selected.indexOf(d.id) > -1;
+      s += '<circle class="gl-bub" data-id="' + d.id + '" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="' + r.toFixed(1) + '"' +
+           ' fill="' + c + '" fill-opacity="' + (sel ? ".95" : ".70") + '" stroke="' + (sel ? "#123a6b" : "#ffffff") + '" stroke-width="' + (sel ? 2 : 1.3) + '"' +
+           ' style="cursor:pointer"><title>' + esc(d.short) + " · " + esc(d.vendor) + " · " + esc(d.vramLabel) + " · " + fmt(d.bw) + " GB/s</title></circle>";
+    });
+
+    svg.innerHTML = s;
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  }
+
+  /* ---------- 托盘 ---------- */
+  function renderTray(){
+    byId("glSelCount").textContent = state.selected.length;
+    var chips = byId("glTrayChips");
+    if(!state.selected.length){
+      chips.innerHTML = '<span class="gl-tray-empty">勾选 2–6 款型号（可跨厂商）后开始对比</span>';
+    }else{
+      chips.innerHTML = state.selected.map(function(id, i){
+        var d = DATA.filter(function(x){ return x.id === id; })[0];
+        if(!d) return "";
+        return '<span class="gl-selchip"><i style="background:' + PALETTE[i % 4] + '"></i>' + d.short +
+          '<button data-unselect="' + id + '" title="移除">×</button></span>';
+      }).join("");
+    }
+    byId("glCompareBtn").disabled = state.selected.length < 2;
+    byId("glCompareBtn").textContent = "开始对比" + (state.selected.length ? "（" + state.selected.length + "）" : "");
+    byId("glFab").classList.toggle("on", state.selected.length >= 2 && !trayVisible);
+    byId("glFabCount").textContent = state.selected.length;
+  }
+
+  function render(){
+    var list = sorted(filtered());
+    byId("glCount").textContent = list.length;
+    renderTable(list);
+    renderCards(list);
+    renderScatter(list);
+    renderTray();
+  }
+
+  /* ---------- 交互：筛选 / 排序 / 视图 ---------- */
+  byId("glSearch").addEventListener("input", function(e){
+    state.q = e.target.value.trim();
+    render();
+  });
+
+  byId("glSeg").addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-view]");
+    if(!btn) return;
+    state.view = btn.getAttribute("data-view");
+    document.querySelectorAll("#gpuLab .gl-seg button").forEach(function(b){ b.classList.remove("on"); });
+    btn.classList.add("on");
+    byId("glViewTable").classList.toggle("on", state.view === "table");
+    byId("glViewCards").classList.toggle("on", state.view === "cards");
+  });
+
+  function setRange(key, id, txtId, suffix){
+    var input = byId(id);
+    input.addEventListener("input", function(){
+      state[key] = Number(input.value);
+      byId(txtId).textContent = state[key] + suffix;
+      render();
+    });
+  }
+  setRange("vram","glVram","glVramTxt"," GB");
+  setRange("fp32","glFp32","glFp32Txt"," TFLOPS");
+  setRange("bw","glBw","glBwTxt"," GB/s");
+
+  var lab = byId("gpuLab");
+  lab.addEventListener("click", function(e){
+    var vtab = e.target.closest("[data-vendor]");
+    if(vtab){
+      state.vendor = vtab.getAttribute("data-vendor");
+      renderVendors();
+      render();
+      return;
+    }
+    var chipEl = e.target.closest("[data-chip]");
+    if(chipEl){
+      var type = chipEl.getAttribute("data-chip");
+      var raw = chipEl.getAttribute("data-val");
+      var val = type === "year" ? Number(raw) : raw;
+      var arr = type === "arch" ? state.archs : type === "form" ? state.forms : type === "year" ? state.years : state.precs;
+      var idx = arr.indexOf(val);
+      if(idx > -1){ arr.splice(idx,1); chipEl.classList.remove("on"); }
+      else { arr.push(val); chipEl.classList.add("on"); }
+      render();
+      return;
+    }
+    var th = e.target.closest("th[data-sort]");
+    if(th){
+      var k = th.getAttribute("data-sort");
+      if(state.sortKey === k){ state.sortDir *= -1; }
+      else { state.sortKey = k; state.sortDir = (k === "name" || k === "arch") ? 1 : -1; }
+      render();
+      return;
+    }
+    var detailBtn = e.target.closest("[data-detail]");
+    if(detailBtn){
+      var id = detailBtn.getAttribute("data-detail");
+      state.expanded = state.expanded === id ? null : id;
+      render();
+      return;
+    }
+    var unsel = e.target.closest("[data-unselect]");
+    if(unsel){
+      var uid = unsel.getAttribute("data-unselect");
+      state.selected = state.selected.filter(function(x){ return x !== uid; });
+      render();
+      return;
+    }
+    var bub = e.target.closest("circle.gl-bub");
+    if(bub){ toggleSelect(bub.getAttribute("data-id")); }
+  });
+
+  lab.addEventListener("change", function(e){
+    var cb = e.target.closest("[data-check]");
+    if(!cb) return;
+    toggleSelect(cb.getAttribute("data-check"));
+  });
+
+  function toggleSelect(id){
+    var i = state.selected.indexOf(id);
+    if(i > -1){ state.selected.splice(i,1); }
+    else {
+      if(state.selected.length >= state.limit){ toast("最多同时对比 " + state.limit + " 款，先移除一款再选"); render(); return; }
+      state.selected.push(id);
+    }
+    render();
+  }
+
+  byId("glReset").addEventListener("click", function(){
+    state.q = ""; state.vendor = "all"; state.archs = []; state.forms = []; state.years = []; state.precs = [];
+    state.vram = 0; state.fp32 = 0; state.bw = 0;
+    byId("glSearch").value = "";
+    byId("glVram").value = 0; byId("glFp32").value = 0; byId("glBw").value = 0;
+    byId("glVramTxt").textContent = "0 GB";
+    byId("glFp32Txt").textContent = "0 TFLOPS";
+    byId("glBwTxt").textContent = "0 GB/s";
+    document.querySelectorAll("#gpuLab .gl-chip").forEach(function(c){ c.classList.remove("on"); });
+    renderVendors();
+    render();
+  });
+
+  byId("glClear").addEventListener("click", function(){
+    state.selected = [];
+    render();
+  });
+
+  /* ---------- 悬浮提示 ---------- */
+  var tip = byId("glTip");
+  byId("glChartWrap").addEventListener("pointermove", function(e){
+    var c = e.target.closest ? e.target.closest("circle.gl-bub") : null;
+    if(!c){ tip.style.opacity = 0; return; }
+    var d = DATA.filter(function(x){ return x.id === c.getAttribute("data-id"); })[0];
+    if(!d) return;
+    tip.innerHTML = "<b>" + d.short + "</b>架构 <em>" + d.arch + "</em> · " + d.year + " 年<br>显存 <em>" + d.vramLabel + "</em><br>带宽 <em>" + d.bwLabel + "</em> · FP32 <em>" + d.fp32 + " TFLOPS</em>";
+    var rect = byId("glChartWrap").getBoundingClientRect();
+    tip.style.left = (e.clientX - rect.left) + "px";
+    tip.style.top = (e.clientY - rect.top) + "px";
+    tip.style.opacity = 1;
+  });
+  byId("glChartWrap").addEventListener("pointerleave", function(){ tip.style.opacity = 0; });
+
+  /* ---------- 对比弹层 ---------- */
+  function scoreOf(d){
+    var parts = [[d.fp32,MAX.fp32,30],[d.vram,MAX.vram,25],[d.bw,MAX.bw,25],[d.link,MAX.link,20]];
+    var sum = 0, w = 0;
+    parts.forEach(function(p){
+      if(p[0] !== null && p[0] !== undefined){ sum += (p[0] / p[1]) * p[2]; w += p[2]; }
+    });
+    return w ? (sum / w) * 100 : 0;
+  }
+  function pct(v, key){ return Math.max(3, Math.min(100, ((v === null || v === undefined ? 0 : v) / MAX[key]) * 100)); }
+
+  var METRICS = [
+    {key:"fp32", label:"FP32 算力", unit:"TFLOPS"},
+    {key:"fp4",  label:"FP4 稠密算力", unit:"PFLOPS"},
+    {key:"vram", label:"显存容量", unit:"GB"},
+    {key:"bw",   label:"显存带宽", unit:"GB/s"},
+    {key:"link", label:"互联带宽", unit:"GB/s"}
+  ];
+
+  function metricsForTab(){
+    if(state.tab === "all") return METRICS;
+    if(state.tab === "fp32") return METRICS.filter(function(m){ return m.key === "fp32" || m.key === "fp4"; });
+    return METRICS.filter(function(m){ return m.key === state.tab; });
+  }
+
+  function renderModal(){
+    var sel = state.selected.map(function(id){
+      return DATA.filter(function(d){ return d.id === id; })[0];
+    }).filter(Boolean);
+
+    var colors = sel.map(function(_, i){ return PALETTE[i % 4]; });
+
+    var cards = sel.map(function(d, i){
+      var c = colors[i];
+      return '<div class="gl-cmp-card" style="--c:' + c + '">' +
+        '<div class="gl-cc-top"><div><h3>' + esc(d.short) + "</h3>" +
+          '<div class="gl-cc-arch">' + vendorTag(d.vendor) + '<span style="margin-left:7px">' + esc(d.arch) + " · " + d.year + "</span></div></div>" +
+          '<button class="gl-cc-remove" data-remove="' + d.id + '" title="移除">✕</button></div>' +
+        '<div class="gl-cc-score"><b>' + scoreOf(d).toFixed(1) + "</b><span>综合分 / 100</span></div>" +
+        '<div class="gl-cc-meta"><span>FP32 <b>' + fmt(d.fp32) + "</b></span><span>显存 <b>" + fmt(d.vram) + "G</b></span><span>带宽 <b>" + (d.bw >= 1000 ? tbs(d.bw) : fmt(d.bw) + "G") + "</b></span></div>" +
+      "</div>";
+    }).join("");
+
+    var tabs = [["all","综合"],["fp32","算力"],["vram","显存"],["bw","带宽"],["link","互联"]];
+    var tabHtml = tabs.map(function(t){
+      return '<button class="gl-cmp-tab' + (state.tab === t[0] ? " on" : "") + '" data-tab="' + t[0] + '">' + t[1] + "</button>";
+    }).join("");
+
+    /* 左栏：指标条 —— 当前分项置顶，其余下移并弱化 */
+    var metrics = METRICS;
+    if(state.tab !== "all"){
+      var focusKeys = state.tab === "fp32" ? ["fp32","fp4"] : [state.tab];
+      var focusList = metrics.filter(function(m){ return focusKeys.indexOf(m.key) > -1; });
+      var restList = metrics.filter(function(m){ return focusKeys.indexOf(m.key) === -1; });
+      metrics = focusList.concat(restList);
+    }
+    var barsHtml = metrics.map(function(m){
+      var isFocus = state.tab !== "all" && (m.key === state.tab || (state.tab === "fp32" && m.key === "fp4"));
+      var dim = state.tab !== "all" && !isFocus;
+      var best = -1;
+      sel.forEach(function(d){ var v = d[m.key]; if(v !== null && v !== undefined && v > best) best = v; });
+      var rows = sel.map(function(d, i){
+        var v = d[m.key];
+        var width = (v === null || v === undefined) ? 0 : pct(v, m.key);
+        var cls = (v !== null && v !== undefined && v === best && sel.length > 1) ? " best" : "";
+        var text = (v === null || v === undefined) ? "—" : fmt(v);
+        return '<div class="gl-mrow">' +
+          '<span class="gl-mlabel" title="' + d.short + '">' + d.short + "</span>" +
+          '<span class="gl-mtrack' + cls + '"' + (v === null || v === undefined ? ' style="visibility:hidden"' : "") + '><i style="width:' + width.toFixed(1) + '%;--c1:' + PALE[colors[i]][0] + ';--c2:' + PALE[colors[i]][1] + '"></i></span>' +
+          '<span class="gl-mval' + cls + '">' + text + "</span>" +
+        "</div>";
+      }).join("");
+      return '<div class="gl-metric' + (isFocus ? " focus" : "") + (dim ? " dim" : "") + '"><div class="gl-metric-title"><b>' + m.label + "</b><span>" + m.unit + "</span></div>" + rows + "</div>";
+    }).join("");
+
+    /* 综合排名 */
+    var ranked = sel.slice().sort(function(a,b){ return scoreOf(b) - scoreOf(a); });
+    var rankHtml = '<div class="gl-rank">' + ranked.map(function(d, i){
+      var c = colors[sel.indexOf(d)];
+      return '<div class="gl-rank-row">' +
+        '<span class="gl-rank-no">' + (i+1) + "</span>" +
+        '<div><div class="gl-rank-top"><span class="gl-rank-name">' + d.short + '</span>' +
+        '<span class="gl-rank-score">' + scoreOf(d).toFixed(1) + "</span></div>" +
+        '<div class="gl-rank-bar"><i style="width:' + scoreOf(d).toFixed(1) + '%;--c1:' + c + ';--c2:' + c + '"></i></div></div>' +
+      "</div>";
+    }).join("") + "</div>";
+
+    var top = ranked[0];
+    function topBy(key){
+      var arr = sel.filter(function(x){ return x[key] !== null && x[key] !== undefined; });
+      if(!arr.length) return null;
+      return arr.slice().sort(function(a,b){ return b[key] - a[key]; })[0];
+    }
+    var tf = topBy("fp32"), tb = topBy("bw"), tv = topBy("vram");
+    var insight = '<div class="gl-insight">◇ <div>综合评分最高：<b>' + esc(top.short) + "（" + scoreOf(top).toFixed(1) + " 分）</b>；" +
+      "评分权重 FP32 30% · 显存 25% · 带宽 25% · 互联 20%（缺失项自动按有效项归一）。" +
+      (sel.length > 1 && tf ? " FP32 最强 <b>" + esc(tf.short) + "</b>" : "") +
+      (sel.length > 1 && tv ? "，显存最大 <b>" + esc(tv.short) + "</b>" : "") +
+      (sel.length > 1 && tb ? "，带宽最强 <b>" + esc(tb.short) + "</b>" : "") +
+      (sel.length > 1 ? "。" : "") +
+      "</div></div>";
+
+    /* 雷达图 */
+    var radar = radarSvg(sel, colors);
+
+    /* 参数对照表 */
+    var rows = [
+      ["厂商", function(d){ return vendorTag(d.vendor); }, null],
+      ["架构", function(d){ return archTag(d.arch); }, null],
+      ["发布年份", function(d){ return String(d.year); }, null],
+      ["封装形态", function(d){ return d.form; }, null],
+      ["FP32 算力", function(d){ return d.fp32 === null ? "—" : "<b>" + fmt(d.fp32) + "</b> TFLOPS"; }, "fp32"],
+      ["FP4 稠密算力", function(d){ return d.fp4 === null ? "—" : "<b>" + d.fp4 + "</b> PFLOPS"; }, "fp4"],
+      ["显存", function(d){ return esc(d.vramLabel); }, "vram", true],
+      ["显存带宽", function(d){ return esc(d.bwLabel); }, "bw"],
+      ["互联方案", function(d){ return esc(d.linkType); }, null, true],
+      ["互联描述", function(d){ return esc(d.linkLabel || "—"); }, null, true],
+      ["互联带宽", function(d){ return d.link === null ? "—" : "<b>" + fmt(d.link) + "</b> GB/s"; }, "link"],
+      ["部署形态", function(d){ return d.deploy; }, null, true],
+      ["支持精度", function(d){
+        return d.precs.map(function(p){ return '<span class="gl-pchip">' + p + "</span>"; }).join("");
+      }, null, true],
+      ["综合评分", function(d){ return "<b>" + scoreOf(d).toFixed(1) + "</b> / 100"; }, "score"]
+    ];
+
+    var ptable = '<thead><tr><th>参数</th>' + sel.map(function(d, i){
+      return '<th><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + colors[i] + ';margin-right:5px"></span>' + esc(d.short) + "</th>";
+    }).join("") + "</tr></thead><tbody>" + rows.map(function(r){
+      var best = -1;
+      if(r[2]){
+        sel.forEach(function(d){
+          var v = r[2] === "score" ? scoreOf(d) : d[r[2]];
+          if(v !== null && v !== undefined && v > best) best = v;
+        });
+      }
+      return "<tr><th>" + r[0] + "</th>" + sel.map(function(d, i){
+        var v = r[2] ? (r[2] === "score" ? scoreOf(d) : d[r[2]]) : null;
+        var cls = (r[2] && v !== null && v !== undefined && v === best && sel.length > 1) ? "best" : "";
+        if(r[3]) cls += " gl-wrap";
+        return '<td class="' + cls.trim() + '">' + r[1](d) + "</td>";
+      }).join("") + "</tr>";
+    }).join("") + "</tbody>";
+
+    var body = byId("glModalBody");
+    body.innerHTML =
+      '<div class="gl-cmp-cards">' + cards + "</div>" +
+      '<div class="gl-cmp-tabs">' + tabHtml + "</div>" +
+      '<div class="gl-cmp-grid">' +
+        '<div class="gl-cmp-panel">' + insight +
+          "<h4>分项指标对比</h4>" +
+          '<p class="gl-hint">' + (state.tab === "all" ? "按全局最大值归一化，★ 为该项最强" : "已高亮当前分项，其余转为参考") + "</p>" +
+          barsHtml +
+        "</div>" +
+        '<div class="gl-cmp-panel">' +
+          "<h4>综合评分排名</h4>" +
+          '<p class="gl-hint">FP32 30% · 显存 25% · 带宽 25% · 互联 20%</p>' +
+          rankHtml +
+          '<div class="gl-radar-sep"></div>' +
+          "<h4>四维能力雷达</h4>" +
+          '<p class="gl-hint">归一化后的能力形状，越靠外越强</p>' +
+          radar +
+        "</div>" +
+      "</div>" +
+      '<div class="gl-ptable-wrap"><h4>参数逐项对照</h4><p>绿色底为该项最优值（综合评分按权重计算结果）</p>' +
+        '<div class="gl-ptable-scroll"><table class="gl-ptable">' + ptable + "</table></div>" +
+      "</div>";
+
+    /* 事件 */
+    body.querySelectorAll("[data-tab]").forEach(function(b){
+      b.addEventListener("click", function(){ state.tab = b.getAttribute("data-tab"); renderModal(); });
+    });
+    body.querySelectorAll("[data-remove]").forEach(function(b){
+      b.addEventListener("click", function(){
+        var id = b.getAttribute("data-remove");
+        state.selected = state.selected.filter(function(x){ return x !== id; });
+        render();
+        if(state.selected.length < 2){ closeModal(); } else { renderModal(); }
+      });
+    });
+
+    if(state.tab === "all"){ body.scrollTop = 0; }
+  }
+
+  function radarSvg(sel, colors){
+    var cx = 165, cy = 158, R = 104;
+    var dims = [
+      {k:"fp32", label:"FP32"},
+      {k:"vram", label:"显存"},
+      {k:"bw", label:"带宽"},
+      {k:"link", label:"互联"}
+    ];
+    var angles = [-Math.PI/2, 0, Math.PI/2, Math.PI];
+    function pt(i, ratio){
+      return [cx + Math.cos(angles[i]) * R * ratio, cy + Math.sin(angles[i]) * R * ratio];
+    }
+    var s = '<svg class="gl-radar" viewBox="0 0 330 330">';
+    [0.25,0.5,0.75,1].forEach(function(r){
+      var p = dims.map(function(_, i){ var q = pt(i, r); return q[0].toFixed(1) + "," + q[1].toFixed(1); }).join(" ");
+      s += '<polygon points="' + p + '" fill="' + (r===1 ? "#f4f9ff" : "none") + '" stroke="#e2edfb" stroke-width="1"/>';
+    });
+    dims.forEach(function(_, i){
+      var q = pt(i, 1);
+      s += '<line x1="' + cx + '" y1="' + cy + '" x2="' + q[0] + '" y2="' + q[1] + '" stroke="#e6f0fc"/>';
+      var lb = pt(i, 1.24);
+      s += '<text x="' + lb[0] + '" y="' + (lb[1]+4) + '" text-anchor="middle" font-size="11" fill="#5f7a9a" font-weight="600">' + dims[i].label + "</text>";
+    });
+    sel.forEach(function(d, idx){
+      var c = colors[idx];
+      var p = dims.map(function(dm, i){
+        var q = pt(i, Math.max(.06, numOr0(d[dm.k]) / MAX[dm.k]));
+        return q[0].toFixed(1) + "," + q[1].toFixed(1);
+      }).join(" ");
+      s += '<polygon points="' + p + '" fill="' + c + '" fill-opacity=".14" stroke="' + c + '" stroke-width="1.8" stroke-opacity=".9"/>';
+      dims.forEach(function(dm, i){
+        var q = pt(i, Math.max(.06, numOr0(d[dm.k]) / MAX[dm.k]));
+        s += '<circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="3" fill="' + c + '"/>';
+      });
+    });
+    s += "</svg><div class='gl-radar-legend'>" + sel.map(function(d, i){
+      return "<span><i style='background:" + colors[i] + "'></i>" + d.short + "</span>";
+    }).join("") + "</div>";
+    return s;
+  }
+
+  function openModal(){
+    if(state.selected.length < 2) return;
+    state.tab = "all";
+    renderModal();
+    byId("glModal").classList.add("open");
+    document.body.setAttribute("data-gl-lock", "1");
+    document.body.style.overflow = "hidden";
+  }
+  function closeModal(){
+    byId("glModal").classList.remove("open");
+    document.body.style.overflow = "";
+    document.body.removeAttribute("data-gl-lock");
+  }
+  byId("glCompareBtn").addEventListener("click", openModal);
+  byId("glFab").addEventListener("click", openModal);
+  byId("glModalClose").addEventListener("click", closeModal);
+  byId("glModal").addEventListener("click", function(e){
+    if(e.target === byId("glModal")) closeModal();
+  });
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape" && byId("glModal").classList.contains("open")) closeModal();
+  });
+
+  /* ---------- toast ---------- */
+  var toastTimer = null;
+  function toast(msg){
+    var t = byId("glToast");
+    t.textContent = msg;
+    t.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove("on"); }, 2200);
+  }
+
+  /* ---------- CSV 数据源 ---------- */
+  var CSV_PATH = "./gpu_data_input.csv";
+
+  var COLMAP = {
+    "厂商":"vendor","品牌":"vendor",
+    "型号":"name","产品型号":"name",
+    "简称":"short",
+    "年份":"year","发布年份":"year",
+    "架构":"arch",
+    "FP32_TFLOPS":"fp32","FP32":"fp32",
+    "FP4_PFLOPS":"fp4","FP4":"fp4",
+    "显存描述":"vramLabel",
+    "显存_GB":"vram","显存":"vram",
+    "带宽描述":"bwLabel",
+    "带宽_GBps":"bw","带宽":"bw",
+    "互联方案":"linkType",
+    "互联带宽_GBps":"link","互联带宽":"link",
+    "互联描述":"linkLabel",
+    "封装":"form","封装形态":"form",
+    "部署形态":"deploy","部署":"deploy",
+    "支持精度":"precs","精度":"precs",
+    "简介":"desc","描述":"desc",
+    "名词解释":"note","备注":"note",
+    "官网":"url"
+  };
+
+  function normKey(h){
+    return String(h || "").replace(/^\uFEFF/, "").replace(/\s+/g, "").replace(/[（）()［］\[\]]/g, "").trim();
+  }
+  function mapHeader(h){
+    var k = normKey(h);
+    if(COLMAP[k]) return COLMAP[k];
+    var best = null;
+    Object.keys(COLMAP).forEach(function(key){
+      if(k.indexOf(key) === 0 && (!best || key.length > best.length)) best = key;
+    });
+    return best ? COLMAP[best] : null;
+  }
+  function parseCSV(text){
+    var rows = [], row = [], cur = "", q = false;
+    text = String(text).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    for(var i = 0; i < text.length; i++){
+      var ch = text[i];
+      if(q){
+        if(ch === '"'){
+          if(text[i+1] === '"'){ cur += '"'; i++; } else { q = false; }
+        } else { cur += ch; }
+      } else if(ch === '"'){ q = true; }
+      else if(ch === ","){ row.push(cur); cur = ""; }
+      else if(ch === "\n"){ row.push(cur); rows.push(row); row = []; cur = ""; }
+      else { cur += ch; }
+    }
+    row.push(cur);
+    rows.push(row);
+    return rows.filter(function(r){ return r.some(function(c){ return String(c).trim() !== ""; }); });
+  }
+  function toNum(v){
+    if(v === null || v === undefined) return null;
+    var t = String(v).replace(/,/g, "").trim();
+    if(!t) return null;
+    var n = parseFloat(t);
+    return isNaN(n) ? null : n;
+  }
+  function parseRows(text){
+    var rows = parseCSV(text);
+    if(!rows.length) throw new Error("CSV 为空");
+    var head = null, idx = null;
+    for(var r = 0; r < Math.min(rows.length, 5); r++){
+      var map = {};
+      rows[r].forEach(function(h, i){
+        var k = mapHeader(h);
+        if(k && !(k in map)) map[k] = i;
+      });
+      if(("name" in map) && (("vram" in map) || ("bw" in map))){ head = r; idx = map; break; }
+    }
+    if(head === null) throw new Error("未识别到表头");
+    var list = [], seen = {};
+    rows.slice(head + 1).forEach(function(cells){
+      var get = function(k){ return (k in idx) ? String(cells[idx[k]] || "").trim() : ""; };
+      var name = get("name");
+      if(!name || name.indexOf("（注") === 0 || name.indexOf("(注") === 0) return;
+      var vendor = get("vendor") || "其他";
+      var short = get("short") || name;
+      var id = vendor + "|" + short;
+      if(seen[id]) id = id + "#" + (seen[id] + 1);
+      seen[vendor + "|" + short] = (seen[vendor + "|" + short] || 0) + 1;
+      var precs = get("precs").split(/[、\/／,，]/).map(function(p){ return p.trim(); }).filter(Boolean);
+      var vram = toNum(get("vram"));
+      list.push({
+        id: id, vendor: vendor, name: name, short: short,
+        year: toNum(get("year")) || 0, arch: get("arch") || "未知",
+        fp32: toNum(get("fp32")), fp4: toNum(get("fp4")),
+        vram: vram, vramLabel: get("vramLabel") || (vram === null ? "—" : vram + " GB"),
+        bw: toNum(get("bw")), bwLabel: get("bwLabel") || (toNum(get("bw")) === null ? "—" : fmt(toNum(get("bw"))) + " GB/s"),
+        link: toNum(get("link")), linkLabel: get("linkLabel"), linkType: get("linkType") || "—",
+        form: get("form") || "—", deploy: get("deploy") || "—",
+        precs: precs, desc: get("desc"), note: get("note"), url: get("url")
+      });
+    });
+    return list;
+  }
+
+  function computeMax(){
+    ["fp32","fp4","vram","bw","link"].forEach(function(k){ MAX[k] = 1; });
+    DATA.forEach(function(d){
+      ["fp32","fp4","vram","bw","link"].forEach(function(k){
+        if(d[k] !== null && d[k] > MAX[k]) MAX[k] = d[k];
+      });
+    });
+  }
+
+  function setupRanges(){
+    var v = byId("glVram"), f = byId("glFp32"), b = byId("glBw");
+    v.max = Math.max(32, Math.ceil(MAX.vram / 8) * 8); v.step = 8;
+    f.max = Math.max(20, Math.ceil(MAX.fp32 / 10) * 10); f.step = MAX.fp32 > 200 ? 25 : 10;
+    b.max = Math.max(2000, Math.ceil(MAX.bw / 1000) * 1000); b.step = 1000;
+    v.value = 0; f.value = 0; b.value = 0;
+  }
+
+  function showErr(msg){
+    byId("glErr").style.display = "block";
+    if(msg) byId("glErr").querySelector("b").textContent = msg;
+    setSource("未读取到数据 · 请确认同目录下存在 <code>gpu_data_input.csv</code>", false);
+  }
+
+  function init(rows){
+    if(!rows.length) throw new Error("CSV 没有有效数据行");
+    DATA = rows;
+    computeMax();
+    setupRanges();
+    byId("glErr").style.display = "none";
+    byId("glTotal").textContent = DATA.length;
+    renderStats();
+    renderVendors();
+    buildChips();
+    render();
+    var names = {};
+    DATA.forEach(function(d){ names[d.vendor] = 1; });
+    setSource("已加载 <code>gpu_data_input.csv</code> · " + DATA.length + " 款型号 / " + Object.keys(names).length + " 家厂商 · 改完 CSV 刷新本页即可更新", true);
+  }
+
+  function loadCSV(){
+    setSource("正在读取 <code>gpu_data_input.csv</code> …", true);
+    byId("glTbody").innerHTML = '<tr><td colspan="12" class="gl-empty">正在读取 gpu_data_input.csv …</td></tr>';
+    fetch(CSV_PATH + "?v=" + Date.now(), {cache: "no-store"})
+      .then(function(r){ if(!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+      .then(function(t){ init(parseRows(t)); })
+      .catch(function(e){
+        if(window.console) console.warn("[gpu-compare] CSV 读取失败：", e);
+        byId("glTbody").innerHTML = '<tr><td colspan="12" class="gl-empty">数据未加载</td></tr>';
+        showErr();
+      });
+  }
+
+  /* ---------- 启动 ---------- */
+  byId("glReload").addEventListener("click", loadCSV);
+  byId("glFile").addEventListener("change", function(e){
+    var f = e.target.files && e.target.files[0];
+    if(!f) return;
+    var fr = new FileReader();
+    fr.onload = function(){
+      try { init(parseRows(String(fr.result))); }
+      catch(err){ showErr("CSV 解析失败：" + err.message); }
+    };
+    fr.readAsText(f, "utf-8");
+  });
+  loadCSV();
+  if(typeof IntersectionObserver !== "undefined"){
+    new IntersectionObserver(function(entries){
+      trayVisible = entries[0].isIntersecting;
+      byId("glFab").classList.toggle("on", state.selected.length >= 2 && !trayVisible);
+    }, {threshold:.12}).observe(byId("glTray"));
+  }
+})();
+</script>
+<!-- ============ Gridea 粘贴区 · 结束 ============ -->
+</body>
+</html>

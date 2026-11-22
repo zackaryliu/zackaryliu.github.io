@@ -8,7 +8,7 @@
     <meta name="renderer" content="webkit">
     <meta name="format-detection" content="telephone=no, email=no, address=no">
 
-    <meta name="generator" content="Gridea Pro 1.1.1">
+    <meta name="generator" content="Gridea Pro 1.2.2">
     <title>Deep Kernel</title>
 
     
@@ -388,7 +388,7 @@ Tips: Kernel 一词多义，&lt;br&gt;
       "@type": "BlogPosting",
       "title": "【 MM 】聊聊 OOM 选目标原则",
       "description": "这一篇的主旨是 OOM 选目标的原则，也就是我们只关注发生 OOM 之后的事情发展，包括是否应该继续 OOM 选一个任务 kill 掉释放空间，以及具体应该选择哪一个任务来 kill，选择的依据是什么。 我们暂不关心为何会发生 OOM，因为这一块属于内存申请或内存回收的范畴中，我们会在其它文章中单独聊。 一、原理分析 那我们现在就直接从触发 OOM 的入口开...",
-      "keywords": "memory",
+      "keywords": "",
       "url": "/post/mm-liao-liao-oom-xuan-mu-biao-de-yuan-ze/",
       
       "published": "2022-03-02T23:32:20+08:00",
@@ -399,7 +399,7 @@ Tips: Kernel 一词多义，&lt;br&gt;
       "@type": "BlogPosting",
       "title": "【 MM 】聊聊 TTU 和 RMAP",
       "description": "开篇有必要做个名词解释， TTU - Try To Umap RMAP - Reverse map 选择一起聊它们两个，想必它们固然是伴有着千丝万缕的联系。 没错，当内核做出以下操作时，不得不从page的角度出发反向去找到对该page的所有映射，然后一一解除。 1、内存回收时，因为被回收的page要被写入swap或disk，后续不在原因的位置上 2、内存迁移...",
-      "keywords": "memory",
+      "keywords": "",
       "url": "/post/mm-liao-liao-ttu-he-rmap/",
       
       "published": "2022-03-01T23:14:58+08:00",
@@ -551,6 +551,11 @@ Tips: Kernel 一词多义，<br>
                                             </a>
                                             
                                      · 
+                                            <a class="menu-item" href="https://deepkernel.cn/gpu-compare">
+                                                AI 性能
+                                            </a>
+                                            
+                                     · 
                                             <a class="menu-item" href="/archives">
                                                 归档
                                             </a>
@@ -612,7 +617,7 @@ Tips: Kernel 一词多义，<br>
 
             
 
-    <script>console.log("\n%c ✦ Gridea Pro v1.1.1 %c · Theme: amore v1.1.0 · https://gridea.pro %c\n","color:#fadfa3;background:#111111;padding:9px 14px;border-radius:4px 0 0 4px;font-weight:500;font-size:12px","color:#e05c00;background:#fff3ec;padding:9px 14px;border-radius:0 4px 4px 0;font-size:11px","")</script>
+    <script>console.log("\n%c ✦ Gridea Pro v1.2.2 %c · Theme: amore v1.1.0 · https://gridea.pro %c\n","color:#fadfa3;background:#111111;padding:9px 14px;border-radius:4px 0 0 4px;font-weight:500;font-size:12px","color:#e05c00;background:#fff3ec;padding:9px 14px;border-radius:0 4px 4px 0;font-size:11px","")</script>
 </body>
 
     </html>
