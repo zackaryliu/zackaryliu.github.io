@@ -347,6 +347,8 @@
 #gpuLab .gl-cc-remove{border:0;background:transparent;color:#a6b9cf;cursor:pointer;font-size:14px;line-height:1;padding:2px;}
 #gpuLab .gl-cc-remove:hover{color:#e05252;}
 #gpuLab .gl-cc-score{display:flex;align-items:baseline;gap:5px;margin-top:9px;}
+#gpuLab .gl-cc-score.na b,#gpuLab .gl-rank-score.na{font-size:20px;color:#8aa1bf}
+#gpuLab .gl-na{color:#8aa1bf;font-size:13px}
 #gpuLab .gl-cc-score b{font-size:23px;font-weight:750;color:var(--c);letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
 #gpuLab .gl-cc-score span{font-size:10.5px;color:#8ba0bb;}
 #gpuLab .gl-cc-meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:11px;color:#6b84a4;}
@@ -399,6 +401,7 @@
 #gpuLab svg.gl-radar{width:100%;max-width:330px;height:auto;}
 #gpuLab .gl-radar-legend{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:6px;}
 #gpuLab .gl-radar-legend span{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:#5f7a9a;}
+#gpuLab .gl-radar-note{font-size:10.5px;color:#8ba0bb;text-align:center;margin-top:8px;line-height:1.6}
 #gpuLab .gl-radar-legend i{width:8px;height:8px;border-radius:2px;}
 
 #gpuLab .gl-ptable-wrap{margin-top:14px;background:#fff;border:1px solid #e7f0fd;border-radius:17px;overflow:hidden;box-shadow:var(--shadow-sm);}
@@ -463,6 +466,7 @@
   #gpuLab .gl-detail-in{grid-template-columns:1fr;padding-left:20px;}
 }
 @media (max-width:640px){
+  #gpuLab .gl-hero{overflow:hidden;}
   #gpuLab h1{font-size:29px;}
   #gpuLab .gl-eyebrow{font-size:10px;letter-spacing:.07em;padding:5px 12px;}
   #gpuLab .gl-lead{font-size:13px;}
@@ -525,21 +529,21 @@
     </div>
 
     <div class="gl-panel-foot">
-      <div class="gl-count">当前显示 <b id="glCount">0</b> / <span id="glTotal">0</span> 款 · 数据源 <code>gpu_data_input.csv</code></div>
+      <div class="gl-count">当前显示 <b id="glCount">0</b> / <span id="glTotal">0</span> 款 · 数据源 <code>xlsx / csv</code></div>
       <button class="gl-reset" id="glReset">重置全部筛选</button>
     </div>
   </section>
 
   <div class="gl-srcbar">
     <span class="gl-live" id="glLive"></span>
-    <span id="glSrcText">正在读取 <code>gpu_data_input.csv</code> …</span>
+    <span id="glSrcText">正在读取 <code>gpu_data_input.xlsx</code> …</span>
     <button class="gl-mini-btn" id="glReload" style="margin-left:auto">重新读取</button>
   </div>
 
   <div class="gl-error" id="glErr">
-    <b>没能读到 gpu_data_input.csv</b>
-    <p>如果页面是通过 file:// 双击打开的，浏览器会禁止读取本地文件；请用 Gridea 预览地址或线上 https 地址访问，或先在下面手动选择 CSV。</p>
-    <label class="gl-filebtn">手动选择 CSV 文件<input type="file" id="glFile" accept=".csv,text/csv"></label>
+    <b>没能读到数据源</b>
+    <p>优先读取同目录的 gpu_data_input.xlsx，失败时回退 gpu_data_input.csv。若通过 file:// 双击打开，浏览器会禁止读取本地文件；请用 Gridea 预览地址或线上 https 地址访问，或在下面手动选择文件。</p>
+    <label class="gl-filebtn">手动选择 xlsx / csv 文件<input type="file" id="glFile" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label>
   </div>
 
   <!-- ===== 表格视图 ===== -->
@@ -599,7 +603,7 @@
     <button class="gl-compare-btn" id="glCompareBtn" disabled>开始对比</button>
   </div>
 
-  <p class="gl-foot">数据源：<code>gpu_data_input.csv</code>（由飞书《GPU 算力速查表（含 H20）》整理，补充 AMD / Intel / 昇腾 公开规格）· 部分数值为推算或参考值，详见型号「名词解释」· 仅供选型参考。只改 CSV 即可更新本页数据。</p>
+  <p class="gl-foot">数据源：<code>gpu_data_input.xlsx</code>（4 个厂商 sheet）或同构的 <code>gpu_data_input.csv</code>，二者改其一、刷新本页即生效，HTML 无需改动 · 部分数值为参考值，详见型号「名词解释」· 仅供选型参考。</p>
 
   <!-- ===== 对比弹层 ===== -->
   <div class="gl-modal" id="glModal">
@@ -1117,7 +1121,11 @@
     parts.forEach(function(p){
       if(p[0] !== null && p[0] !== undefined){ sum += (p[0] / p[1]) * p[2]; w += p[2]; }
     });
-    return w ? (sum / w) * 100 : 0;
+    return w ? (sum / w) * 100 : null;
+  }
+  function scoreText(d){
+    var sc = scoreOf(d);
+    return sc === null ? "待补" : sc.toFixed(1);
   }
   function pct(v, key){ return Math.max(3, Math.min(100, ((v === null || v === undefined ? 0 : v) / MAX[key]) * 100)); }
 
@@ -1148,7 +1156,7 @@
         '<div class="gl-cc-top"><div><h3>' + esc(d.short) + "</h3>" +
           '<div class="gl-cc-arch">' + vendorTag(d.vendor) + '<span style="margin-left:7px">' + esc(d.arch) + " · " + d.year + "</span></div></div>" +
           '<button class="gl-cc-remove" data-remove="' + d.id + '" title="移除">✕</button></div>' +
-        '<div class="gl-cc-score"><b>' + scoreOf(d).toFixed(1) + "</b><span>综合分 / 100</span></div>" +
+        '<div class="gl-cc-score' + (scoreOf(d) === null ? " na" : "") + '"><b>' + scoreText(d) + "</b><span>" + (scoreOf(d) === null ? "核心规格未公布" : "综合分 / 100") + "</span></div>" +
         '<div class="gl-cc-meta"><span>FP32 <b>' + fmt(d.fp32) + "</b></span><span>显存 <b>" + fmt(d.vram) + "G</b></span><span>带宽 <b>" + (d.bw >= 1000 ? tbs(d.bw) : fmt(d.bw) + "G") + "</b></span></div>" +
       "</div>";
     }).join("");
@@ -1186,14 +1194,20 @@
     }).join("");
 
     /* 综合排名 */
-    var ranked = sel.slice().sort(function(a,b){ return scoreOf(b) - scoreOf(a); });
+    var ranked = sel.slice().sort(function(a,b){
+      var sa = scoreOf(a), sb = scoreOf(b);
+      if(sa === null && sb === null) return 0;
+      if(sa === null) return 1;
+      if(sb === null) return -1;
+      return sb - sa;
+    });
     var rankHtml = '<div class="gl-rank">' + ranked.map(function(d, i){
       var c = colors[sel.indexOf(d)];
       return '<div class="gl-rank-row">' +
         '<span class="gl-rank-no">' + (i+1) + "</span>" +
         '<div><div class="gl-rank-top"><span class="gl-rank-name">' + d.short + '</span>' +
-        '<span class="gl-rank-score">' + scoreOf(d).toFixed(1) + "</span></div>" +
-        '<div class="gl-rank-bar"><i style="width:' + scoreOf(d).toFixed(1) + '%;--c1:' + c + ';--c2:' + c + '"></i></div></div>' +
+        '<span class="gl-rank-score' + (scoreOf(d) === null ? " na" : "") + '">' + scoreText(d) + "</span></div>" +
+        '<div class="gl-rank-bar"><i style="width:' + (scoreOf(d) || 0).toFixed(1) + '%;--c1:' + c + ';--c2:' + c + '"></i></div></div>' +
       "</div>";
     }).join("") + "</div>";
 
@@ -1204,7 +1218,9 @@
       return arr.slice().sort(function(a,b){ return b[key] - a[key]; })[0];
     }
     var tf = topBy("fp32"), tb = topBy("bw"), tv = topBy("vram");
-    var insight = '<div class="gl-insight">◇ <div>综合评分最高：<b>' + esc(top.short) + "（" + scoreOf(top).toFixed(1) + " 分）</b>；" +
+    var insight = '<div class="gl-insight">◇ <div>' + (scoreOf(top) === null
+        ? "所选型号官方未公布 FP32 / 显存 / 带宽等核心规格，暂不生成综合评分；"
+        : "综合评分最高：<b>" + esc(top.short) + "（" + scoreText(top) + " 分）</b>；") +
       "评分权重 FP32 30% · 显存 25% · 带宽 25% · 互联 20%（缺失项自动按有效项归一）。" +
       (sel.length > 1 && tf ? " FP32 最强 <b>" + esc(tf.short) + "</b>" : "") +
       (sel.length > 1 && tv ? "，显存最大 <b>" + esc(tv.short) + "</b>" : "") +
@@ -1232,7 +1248,7 @@
       ["支持精度", function(d){
         return d.precs.map(function(p){ return '<span class="gl-pchip">' + p + "</span>"; }).join("");
       }, null, true],
-      ["综合评分", function(d){ return "<b>" + scoreOf(d).toFixed(1) + "</b> / 100"; }, "score"]
+      ["综合评分", function(d){ var sc = scoreOf(d); return sc === null ? '<span class="gl-na">待补</span>' : "<b>" + sc.toFixed(1) + "</b> / 100"; }, "score"]
     ];
 
     var ptable = '<thead><tr><th>参数</th>' + sel.map(function(d, i){
@@ -1329,8 +1345,11 @@
       });
     });
     s += "</svg><div class='gl-radar-legend'>" + sel.map(function(d, i){
-      return "<span><i style='background:" + colors[i] + "'></i>" + d.short + "</span>";
+      var na = scoreOf(d) === null;
+      return "<span" + (na ? " style='opacity:.5'" : "") + "><i style='background:" + colors[i] + "'></i>" + d.short + (na ? "（待补）" : "") + "</span>";
     }).join("") + "</div>";
+    var missing = sel.filter(function(d){ return scoreOf(d) === null; }).map(function(d){ return d.short; });
+    if(missing.length) s += "<div class='gl-radar-note'>" + missing.join("、") + " 官方未公布 FP32 / 显存 / 带宽，暂不参与雷达与综合评分</div>";
     return s;
   }
 
@@ -1367,7 +1386,8 @@
     toastTimer = setTimeout(function(){ t.classList.remove("on"); }, 2200);
   }
 
-  /* ---------- CSV 数据源 ---------- */
+  /* ---------- 数据源：xlsx 优先，CSV 兜底 ---------- */
+  var XLSX_PATH = "./gpu_data_input.xlsx";
   var CSV_PATH = "./gpu_data_input.csv";
 
   var COLMAP = {
@@ -1393,6 +1413,8 @@
     "官网":"url"
   };
 
+  var SHEET_VENDOR = {"nvidia":"NVIDIA","amd":"AMD","intel":"Intel","ascend":"华为昇腾","昇腾":"华为昇腾","华为":"华为昇腾"};
+
   function normKey(h){
     return String(h || "").replace(/^\uFEFF/, "").replace(/\s+/g, "").replace(/[（）()［］\[\]]/g, "").trim();
   }
@@ -1405,6 +1427,21 @@
     });
     return best ? COLMAP[best] : null;
   }
+  function vendorFromSheet(name){
+    var s = String(name || "");
+    for(var key in SHEET_VENDOR){
+      if(s.toLowerCase().indexOf(key.toLowerCase()) > -1) return SHEET_VENDOR[key];
+    }
+    return "";
+  }
+  function toNum(v){
+    if(v === null || v === undefined) return null;
+    var t = String(v).replace(/,/g, "").trim();
+    if(!t) return null;
+    var n = parseFloat(t);
+    return isNaN(n) ? null : n;
+  }
+
   function parseCSV(text){
     var rows = [], row = [], cur = "", q = false;
     text = String(text).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
@@ -1423,44 +1460,42 @@
     rows.push(row);
     return rows.filter(function(r){ return r.some(function(c){ return String(c).trim() !== ""; }); });
   }
-  function toNum(v){
-    if(v === null || v === undefined) return null;
-    var t = String(v).replace(/,/g, "").trim();
-    if(!t) return null;
-    var n = parseFloat(t);
-    return isNaN(n) ? null : n;
-  }
+
   function parseRows(text){
-    var rows = parseCSV(text);
-    if(!rows.length) throw new Error("CSV 为空");
+    return recordsFromRows(parseCSV(text), "");
+  }
+
+  /* 二维单元格 → 统一记录（CSV / xlsx 共用） */
+  function recordsFromRows(rows, fallbackVendor){
+    if(!rows || !rows.length) return [];
     var head = null, idx = null;
     for(var r = 0; r < Math.min(rows.length, 5); r++){
       var map = {};
-      rows[r].forEach(function(h, i){
+      (rows[r] || []).forEach(function(h, i){
         var k = mapHeader(h);
         if(k && !(k in map)) map[k] = i;
       });
       if(("name" in map) && (("vram" in map) || ("bw" in map))){ head = r; idx = map; break; }
     }
-    if(head === null) throw new Error("未识别到表头");
+    if(head === null) return [];
     var list = [], seen = {};
     rows.slice(head + 1).forEach(function(cells){
-      var get = function(k){ return (k in idx) ? String(cells[idx[k]] || "").trim() : ""; };
+      var get = function(k){ return (k in idx) ? String(cells[idx[k]] === undefined ? "" : cells[idx[k]]).trim() : ""; };
       var name = get("name");
       if(!name || name.indexOf("（注") === 0 || name.indexOf("(注") === 0) return;
-      var vendor = get("vendor") || "其他";
+      var vendor = get("vendor") || fallbackVendor || "其他";
       var short = get("short") || name;
-      var id = vendor + "|" + short;
-      if(seen[id]) id = id + "#" + (seen[id] + 1);
-      seen[vendor + "|" + short] = (seen[vendor + "|" + short] || 0) + 1;
+      var base = vendor + "|" + short;
+      var seq = (seen[base] || 0) + 1;
+      seen[base] = seq;
       var precs = get("precs").split(/[、\/／,，]/).map(function(p){ return p.trim(); }).filter(Boolean);
-      var vram = toNum(get("vram"));
+      var vram = toNum(get("vram")), bw = toNum(get("bw"));
       list.push({
-        id: id, vendor: vendor, name: name, short: short,
+        id: base + (seq > 1 ? "#" + seq : ""), vendor: vendor, name: name, short: short,
         year: toNum(get("year")) || 0, arch: get("arch") || "未知",
         fp32: toNum(get("fp32")), fp4: toNum(get("fp4")),
         vram: vram, vramLabel: get("vramLabel") || (vram === null ? "—" : vram + " GB"),
-        bw: toNum(get("bw")), bwLabel: get("bwLabel") || (toNum(get("bw")) === null ? "—" : fmt(toNum(get("bw"))) + " GB/s"),
+        bw: bw, bwLabel: get("bwLabel") || (bw === null ? "—" : fmt(bw) + " GB/s"),
         link: toNum(get("link")), linkLabel: get("linkLabel"), linkType: get("linkType") || "—",
         form: get("form") || "—", deploy: get("deploy") || "—",
         precs: precs, desc: get("desc"), note: get("note"), url: get("url")
@@ -1469,6 +1504,146 @@
     return list;
   }
 
+  /* ---------- 极简 xlsx 解析（ZIP + OOXML，无外部依赖） ---------- */
+  function decodeUtf8(u8){ return new TextDecoder("utf-8").decode(u8); }
+  function xmlDoc(s){
+    var d = new DOMParser().parseFromString(s, "application/xml");
+    if(d.getElementsByTagName("parsererror").length) throw new Error("XML 解析失败");
+    return d;
+  }
+
+  async function inflateRaw(u8){
+    if(typeof DecompressionStream === "undefined") throw new Error("当前浏览器不支持本地解压（DecompressionStream）");
+    var stream = new Blob([u8]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+
+  async function unzip(buf){
+    var dv = new DataView(buf), u8 = new Uint8Array(buf);
+    var eocd = -1, floor = Math.max(0, u8.length - 65558);
+    for(var i = u8.length - 22; i >= floor; i--){
+      if(dv.getUint32(i, true) === 0x06054b50){ eocd = i; break; }
+    }
+    if(eocd < 0) throw new Error("不是有效的 xlsx（缺少 ZIP 目录）");
+    var count = dv.getUint16(eocd + 10, true), off = dv.getUint32(eocd + 16, true), p = off, entries = {};
+    for(var n = 0; n < count; n++){
+      if(dv.getUint32(p, true) !== 0x02014b50) break;
+      var method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true);
+      var nlen = dv.getUint16(p + 28, true), elen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true);
+      var loff = dv.getUint32(p + 42, true);
+      var name = decodeUtf8(u8.subarray(p + 46, p + 46 + nlen));
+      entries[name] = {method: method, csize: csize, loff: loff};
+      p += 46 + nlen + elen + clen;
+    }
+    var files = {};
+    var names = Object.keys(entries);
+    for(var k = 0; k < names.length; k++){
+      var e = entries[names[k]];
+      var lnl = dv.getUint16(e.loff + 26, true), lel = dv.getUint16(e.loff + 28, true);
+      var start = e.loff + 30 + lnl + lel;
+      var data = u8.subarray(start, start + e.csize);
+      files[names[k]] = e.method === 0 ? data : await inflateRaw(data);
+    }
+    return files;
+  }
+
+  function readSharedStrings(files){
+    if(!files["xl/sharedStrings.xml"]) return [];
+    var doc = xmlDoc(decodeUtf8(files["xl/sharedStrings.xml"]));
+    var sis = doc.getElementsByTagName("si"), out = [];
+    for(var i = 0; i < sis.length; i++){
+      var t = "", kids = sis[i].childNodes;
+      for(var c = 0; c < kids.length; c++){
+        var nd = kids[c];
+        if(nd.nodeType !== 1) continue;
+        if(nd.tagName === "t"){ t += nd.textContent; }
+        else if(nd.tagName === "r"){
+          var ts = nd.getElementsByTagName("t");
+          for(var q = 0; q < ts.length; q++) t += ts[q].textContent;
+        }
+      }
+      out.push(t);
+    }
+    return out;
+  }
+
+  function readSheetList(files){
+    var wb = xmlDoc(decodeUtf8(files["xl/workbook.xml"]));
+    var rels = {};
+    if(files["xl/_rels/workbook.xml.rels"]){
+      var rd = xmlDoc(decodeUtf8(files["xl/_rels/workbook.xml.rels"]));
+      var rs = rd.getElementsByTagName("Relationship");
+      for(var i = 0; i < rs.length; i++) rels[rs[i].getAttribute("Id")] = rs[i].getAttribute("Target");
+    }
+    var out = [], sh = wb.getElementsByTagName("sheet");
+    for(var j = 0; j < sh.length; j++){
+      var rid = sh[j].getAttribute("r:id");
+      if(!rid){
+        var attrs = sh[j].attributes;
+        for(var a = 0; a < attrs.length; a++){
+          if(attrs[a].name && attrs[a].name.indexOf("id") > -1 && attrs[a].name.indexOf(":") > -1) rid = attrs[a].value;
+        }
+      }
+      var tgt = rels[rid] || "";
+      tgt = tgt.replace(/^\/?xl\//, "").replace(/^\.\//, "");
+      out.push({name: sh[j].getAttribute("name"), path: "xl/" + tgt});
+    }
+    return out;
+  }
+
+  function colIndex(ref){
+    var letters = String(ref || "").replace(/[^A-Z]/g, ""), n = 0;
+    for(var i = 0; i < letters.length; i++) n = n * 26 + (letters.charCodeAt(i) - 64);
+    return n - 1;
+  }
+
+  function readSheetRows(u8, shared){
+    var doc = xmlDoc(decodeUtf8(u8));
+    var rowsEl = doc.getElementsByTagName("row"), rows = [];
+    for(var i = 0; i < rowsEl.length; i++){
+      var cells = rowsEl[i].getElementsByTagName("c"), arr = [], max = -1;
+      for(var j = 0; j < cells.length; j++){
+        var c = cells[j], ref = c.getAttribute("r"), t = c.getAttribute("t");
+        var ci = ref ? colIndex(ref) : j, val = "";
+        if(t === "s"){
+          var v1 = c.getElementsByTagName("v")[0];
+          val = v1 ? (shared[parseInt(v1.textContent, 10)] || "") : "";
+        } else if(t === "inlineStr"){
+          var it = c.getElementsByTagName("t")[0];
+          val = it ? it.textContent : "";
+        } else {
+          var v2 = c.getElementsByTagName("v")[0];
+          if(v2) val = v2.textContent;
+          else {
+            var it2 = c.getElementsByTagName("t")[0];
+            if(it2) val = it2.textContent;
+          }
+        }
+        arr[ci] = val;
+        if(ci > max) max = ci;
+      }
+      var fixed = [];
+      for(var k = 0; k <= max; k++) fixed[k] = arr[k] === undefined ? "" : arr[k];
+      rows.push(fixed);
+    }
+    return rows;
+  }
+
+  async function readWorkbook(buf){
+    var files = await unzip(buf);
+    if(!files["xl/workbook.xml"]) throw new Error("缺少 xl/workbook.xml");
+    var shared = readSharedStrings(files), sheets = readSheetList(files), list = [];
+    for(var i = 0; i < sheets.length; i++){
+      var sh = sheets[i];
+      if(!files[sh.path]) continue;
+      var recs = recordsFromRows(readSheetRows(files[sh.path], shared), vendorFromSheet(sh.name));
+      for(var j = 0; j < recs.length; j++) list.push(recs[j]);
+    }
+    if(!list.length) throw new Error("未识别到 20 列表头，无法读取");
+    return list;
+  }
+
+  /* ---------- 渲染主流程 ---------- */
   function computeMax(){
     ["fp32","fp4","vram","bw","link"].forEach(function(k){ MAX[k] = 1; });
     DATA.forEach(function(d){
@@ -1489,12 +1664,12 @@
   function showErr(msg){
     byId("glErr").style.display = "block";
     if(msg) byId("glErr").querySelector("b").textContent = msg;
-    setSource("未读取到数据 · 请确认同目录下存在 <code>gpu_data_input.csv</code>", false);
+    setSource("未读取到数据 · 请确认同目录下存在 <code>gpu_data_input.xlsx</code> 或 <code>gpu_data_input.csv</code>", false);
   }
 
-  function init(rows){
-    if(!rows.length) throw new Error("CSV 没有有效数据行");
-    DATA = rows;
+  function init(list, source){
+    if(!list.length) throw new Error("没有有效数据行");
+    DATA = list;
     computeMax();
     setupRanges();
     byId("glErr").style.display = "none";
@@ -1503,17 +1678,30 @@
     renderVendors();
     buildChips();
     render();
-    var names = {};
-    DATA.forEach(function(d){ names[d.vendor] = 1; });
-    setSource("已加载 <code>gpu_data_input.csv</code> · " + DATA.length + " 款型号 / " + Object.keys(names).length + " 家厂商 · 改完 CSV 刷新本页即可更新", true);
+    var vs = {};
+    DATA.forEach(function(d){ vs[d.vendor] = 1; });
+    setSource("已加载 <code>" + source + "</code> · " + DATA.length + " 款型号 / " + Object.keys(vs).length + " 家厂商 · 改完源文件刷新本页即可更新", true);
+  }
+
+  function loadData(){
+    setSource("正在读取 <code>gpu_data_input.xlsx</code> …", true);
+    byId("glTbody").innerHTML = '<tr><td colspan="12" class="gl-empty">正在读取 gpu_data_input.xlsx …</td></tr>';
+    fetch(XLSX_PATH + "?v=" + Date.now(), {cache: "no-store"})
+      .then(function(r){ if(!r.ok) throw new Error("HTTP " + r.status); return r.arrayBuffer(); })
+      .then(function(buf){ return readWorkbook(buf); })
+      .then(function(list){ init(list, "gpu_data_input.xlsx"); })
+      .catch(function(e){
+        if(window.console) console.warn("[gpu-compare] xlsx 读取失败，回退 CSV：", e);
+        loadCSV();
+      });
   }
 
   function loadCSV(){
     setSource("正在读取 <code>gpu_data_input.csv</code> …", true);
     byId("glTbody").innerHTML = '<tr><td colspan="12" class="gl-empty">正在读取 gpu_data_input.csv …</td></tr>';
-    fetch(CSV_PATH + "?v=" + Date.now(), {cache: "no-store"})
+    return fetch(CSV_PATH + "?v=" + Date.now(), {cache: "no-store"})
       .then(function(r){ if(!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
-      .then(function(t){ init(parseRows(t)); })
+      .then(function(t){ init(parseRows(t), "gpu_data_input.csv"); })
       .catch(function(e){
         if(window.console) console.warn("[gpu-compare] CSV 读取失败：", e);
         byId("glTbody").innerHTML = '<tr><td colspan="12" class="gl-empty">数据未加载</td></tr>';
@@ -1522,18 +1710,28 @@
   }
 
   /* ---------- 启动 ---------- */
-  byId("glReload").addEventListener("click", loadCSV);
+  byId("glReload").addEventListener("click", loadData);
   byId("glFile").addEventListener("change", function(e){
     var f = e.target.files && e.target.files[0];
     if(!f) return;
-    var fr = new FileReader();
-    fr.onload = function(){
-      try { init(parseRows(String(fr.result))); }
-      catch(err){ showErr("CSV 解析失败：" + err.message); }
-    };
-    fr.readAsText(f, "utf-8");
+    if(/\.xlsx$/i.test(f.name)){
+      var fb = new FileReader();
+      fb.onload = function(){
+        readWorkbook(new Uint8Array(fb.result))
+          .then(function(list){ init(list, f.name); })
+          .catch(function(err){ showErr("xlsx 解析失败：" + err.message); });
+      };
+      fb.readAsArrayBuffer(f);
+    } else {
+      var ft = new FileReader();
+      ft.onload = function(){
+        try { init(parseRows(String(ft.result)), f.name); }
+        catch(err){ showErr("CSV 解析失败：" + err.message); }
+      };
+      ft.readAsText(f, "utf-8");
+    }
   });
-  loadCSV();
+  loadData();
   if(typeof IntersectionObserver !== "undefined"){
     new IntersectionObserver(function(entries){
       trayVisible = entries[0].isIntersecting;
