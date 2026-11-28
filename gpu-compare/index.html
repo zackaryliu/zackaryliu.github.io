@@ -171,6 +171,9 @@
 }
 #gpuLab .gl-table thead th.gl-sortable{cursor:pointer;user-select:none;}
 #gpuLab .gl-table thead th.gl-sortable:hover{color:var(--accent);}
+#gpuLab .gl-cprec{display:inline-block;margin-left:4px;padding:0 4px;border-radius:4px;background:#eff6fe;
+  font-size:9px;font-style:normal;letter-spacing:.03em;color:#6f8db3;vertical-align:1px;font-weight:600;}
+#gpuLab .gl-table thead th small{display:block;font-size:9.5px;font-weight:500;color:#94a9c2;letter-spacing:.02em;margin-top:1px;}
 #gpuLab .gl-table thead th.on{color:var(--accent);background:linear-gradient(180deg,#eaf4ff,#e2efff);}
 #gpuLab .gl-sort-ic{display:inline-block;margin-left:3px;color:#9db5d4;font-size:10.5px;}
 #gpuLab .gl-table thead th.on .gl-sort-ic{color:var(--accent);}
@@ -335,7 +338,7 @@
 #gpuLab .gl-modal-body::-webkit-scrollbar{width:9px;}
 #gpuLab .gl-modal-body::-webkit-scrollbar-thumb{background:#cfdff3;border-radius:6px;}
 
-#gpuLab .gl-cmp-cards{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));}
+#gpuLab .gl-cmp-cards{display:grid;gap:9px;grid-template-columns:repeat(auto-fit,minmax(152px,1fr));}
 #gpuLab .gl-cmp-card{
   position:relative;background:#fff;border:1px solid #e6f0fc;border-radius:15px;padding:13px 14px 12px;
   box-shadow:var(--shadow-sm);
@@ -351,7 +354,8 @@
 #gpuLab .gl-na{color:#8aa1bf;font-size:13px}
 #gpuLab .gl-cc-score b{font-size:23px;font-weight:750;color:var(--c);letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
 #gpuLab .gl-cc-score span{font-size:10.5px;color:#8ba0bb;}
-#gpuLab .gl-cc-meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:11px;color:#6b84a4;}
+#gpuLab .gl-cc-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:10.5px;color:#6b84a4;}
+#gpuLab .gl-cc-meta span{white-space:nowrap;}
 #gpuLab .gl-cc-meta span b{color:#2a4e7d;font-weight:600;}
 
 #gpuLab .gl-cmp-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 12px;}
@@ -488,9 +492,9 @@
 
   <!-- ===== Hero ===== -->
   <header class="gl-hero">
-    <span class="gl-eyebrow"><i></i>NVIDIA · AMD · INTEL · 华为昇腾 · 2017 — 2026</span>
+    <span class="gl-eyebrow"><i></i>NVIDIA · AMD · INTEL · 华为昇腾 · 平头哥 · 昆仑芯 · 2017 — 2027</span>
     <h1>AI 算力对比台</h1>
-    <p class="gl-lead">从 Volta 到 Rubin，再到 CDNA4、Gaudi 3 与昇腾 910C，一张表横向看四大厂商的算力、显存、带宽与互联。筛选后可跨厂商混选，最多 6 款并排对比。</p>
+    <p class="gl-lead">从 Volta 到 Rubin，再到 CDNA5、Gaudi 3、昇腾 950、平头哥真武与昆仑芯 P800，一张表横向看<strong>六家厂商 45 款</strong>加速卡的算力、显存、带宽与互联。算力统一按 <strong>FP8 / INT8</strong> 稠密口径（老卡只标 INT8 TOPS），筛选后可跨厂商混选，最多 6 款并排对比。</p>
     <div class="gl-stats" id="glStats"></div>
     <div class="gl-vendors" id="glVendors"></div>
   </header>
@@ -500,7 +504,7 @@
     <div class="gl-panel-top">
       <div class="gl-search">
         <span>⌕</span>
-        <input id="glSearch" type="text" placeholder="搜索型号、架构或关键词，如 H100 / NVLink / FP4">
+        <input id="glSearch" type="text" placeholder="搜索型号、架构或关键词，如 H100 / HBM3e / FP8">
       </div>
       <div class="gl-seg" id="glSeg">
         <button data-view="table" class="on">表格</button>
@@ -511,7 +515,8 @@
     <div class="gl-frow"><label>架构</label><div class="gl-chips" id="glArchChips"></div></div>
     <div class="gl-frow"><label>封装</label><div class="gl-chips" id="glFormChips"></div></div>
     <div class="gl-frow"><label>年份</label><div class="gl-chips" id="glYearChips"></div></div>
-    <div class="gl-frow"><label>精度</label><div class="gl-chips" id="glPrecChips"></div></div>
+    <div class="gl-frow"><label>算力口径</label><div class="gl-chips" id="glCpChips"></div></div>
+    <div class="gl-frow"><label>支持精度</label><div class="gl-chips" id="glPrecChips"></div></div>
 
     <div class="gl-ranges">
       <div class="gl-range">
@@ -519,7 +524,7 @@
         <input type="range" id="glVram" min="0" max="288" step="8" value="0">
       </div>
       <div class="gl-range">
-        <div class="gl-range-top"><span>FP32 下限</span><b id="glFp32Txt">0 TFLOPS</b></div>
+        <div class="gl-range-top"><span>算力下限</span><b id="glFp32Txt">0 TFLOPS</b></div>
         <input type="range" id="glFp32" min="0" max="130" step="10" value="0">
       </div>
       <div class="gl-range">
@@ -558,8 +563,7 @@
               <th class="gl-sortable" data-sort="vendor">厂商<span class="gl-sort-ic">↕</span></th>
               <th class="gl-sortable" data-sort="arch">架构<span class="gl-sort-ic">↕</span></th>
               <th class="gl-sortable" data-sort="year">年份<span class="gl-sort-ic">↕</span></th>
-              <th class="gl-sortable" data-sort="fp32">FP32<span class="gl-sort-ic">↕</span></th>
-              <th class="gl-sortable" data-sort="fp4">FP4<span class="gl-sort-ic">↕</span></th>
+              <th class="gl-sortable" data-sort="compute">算力<span class="gl-sort-ic">↕</span><small>FP8/INT8</small></th>
               <th class="gl-sortable" data-sort="vram">显存<span class="gl-sort-ic">↕</span></th>
               <th class="gl-sortable" data-sort="bw">显存带宽<span class="gl-sort-ic">↕</span></th>
               <th class="gl-sortable" data-sort="link">互联带宽<span class="gl-sort-ic">↕</span></th>
@@ -571,7 +575,7 @@
         </table>
       </div>
     </div>
-    <p class="gl-tbl-note">互联带宽显示「—」表示官方未公布单卡聚合值（AMD Instinct / 昇腾），该项不参与评分；FP4 显示「—」表示该架构不支持。</p>
+    <p class="gl-tbl-note">算力取 <strong>稠密值</strong>：有 FP8 的卡标 FP8 TFLOPS，只有 INT8 的老卡标 INT8 TOPS（两者同为每秒万亿次运算，可直接比大小，但不是同一精度）；「—」表示官方未公布。互联带宽「—」表示官方未给单卡聚合值（多为 AMD / 昇腾 / 国产卡），该项不参与评分。</p>
   </section>
 
   <!-- ===== 卡片视图 ===== -->
@@ -584,7 +588,7 @@
     <div class="gl-chart-head">
       <div>
         <h2>显存 — 带宽 分布</h2>
-        <p>气泡越大代表 FP32 算力越高；点一下气泡即可加入对比，跟随上方筛选实时联动。</p>
+        <p>气泡越大代表 FP8/INT8 算力越高；点一下气泡即可加入对比，跟随上方筛选实时联动。</p>
         <p class="gl-chart-mobile">↔ 图表可左右滑动查看完整区域</p>
       </div>
       <div class="gl-legend" id="glLegend"></div>
@@ -603,7 +607,7 @@
     <button class="gl-compare-btn" id="glCompareBtn" disabled>开始对比</button>
   </div>
 
-  <p class="gl-foot">数据源：<code>gpu_data_input.xlsx</code>（4 个厂商 sheet）或同构的 <code>gpu_data_input.csv</code>，二者改其一、刷新本页即生效，HTML 无需改动 · 部分数值为参考值，详见型号「名词解释」· 仅供选型参考。</p>
+  <p class="gl-foot">数据源：<code>gpu_data_input.xlsx</code>（6 个厂商 sheet）或同构的 <code>gpu_data_input.csv</code>，二者改其一、刷新本页即生效，HTML 无需改动 · 部分数值为参考值，详见型号「名词解释」· 仅供选型参考。</p>
 
   <!-- ===== 对比弹层 ===== -->
   <div class="gl-modal" id="glModal">
@@ -611,7 +615,7 @@
       <div class="gl-modal-head">
         <div>
           <h2>并排对比</h2>
-          <p>按算力 / 显存 / 带宽 / 互联四个维度归一化评分，可切换分项查看</p>
+          <p>按算力（FP8/INT8）/ 显存 / 带宽 / 互联四个维度归一化评分，可切换分项查看</p>
         </div>
         <button class="gl-modal-close" id="glModalClose">✕</button>
       </div>
@@ -641,21 +645,30 @@
     "CDNA2":"#0d9488",
     "CDNA3":"#059669",
     "CDNA4":"#047857",
+    "Gaudi1":"#818cf8",
     "Gaudi2":"#6366f1",
     "Gaudi3":"#4338ca",
-    "达芬奇":"#b45309"
+    "CDNA5":"#065f46",
+    "Xe3P":"#0ea5b7",
+    "达芬奇":"#b45309",
+    "含光":"#8b6d1f",
+    "PPU":"#7c3aed",
+    "XPU-K":"#0f766e",
+    "XPU-R":"#0d9488",
+    "XPU-P":"#0b7285",
+    "XPU-M":"#155e75"
   };
 
-  var VENDOR_COLOR = {"NVIDIA":"#4d7c0f","AMD":"#c2410c","Intel":"#1d4ed8","华为昇腾":"#b91c1c"};
+  var VENDOR_COLOR = {"NVIDIA":"#4d7c0f","AMD":"#c2410c","Intel":"#1d4ed8","华为昇腾":"#b91c1c","平头哥":"#0d9488","昆仑芯":"#7c3aed"};
 
-  var MAX = {fp32:1, fp4:1, vram:1, bw:1, link:1};
+  var MAX = {compute:1, vram:1, bw:1, link:1};
   var PALETTE = ["#2563eb","#0d9488","#8b5cf6","#e0a020","#c026d3","#0e7490"];
   var PALE = {"#2563eb":["#a8c6ff","#2f6fe4"],"#0d9488":["#9fe3d9","#0f9a8c"],"#8b5cf6":["#d0bdff","#7c4ef0"],
     "#e0a020":["#ffe0a3","#dc9b17"],"#c026d3":["#f3c4f2","#b32bb8"],"#0e7490":["#b6e4ef","#0b6a84"]};
 
   var state = {
-    q:"", vendor:"all", archs:[], forms:[], years:[], precs:[],
-    vram:0, fp32:0, bw:0,
+    q:"", vendor:"all", archs:[], forms:[], years:[], precs:[], cps:[],
+    vram:0, compute:0, bw:0,
     sortKey:"year", sortDir:-1,
     view:"table", selected:[], expanded:null, tab:"all", limit:6
   };
@@ -712,7 +725,8 @@
         }
       }
       if(d.vram < state.vram) return false;
-      if(d.fp32 < state.fp32) return false;
+      if(state.cps.length && state.cps.indexOf(d.cpm) === -1) return false;
+      if(d.compute < state.compute) return false;
       if(d.bw < state.bw) return false;
       return true;
     });
@@ -721,7 +735,7 @@
     var k = state.sortKey, dir = state.sortDir;
     return list.slice().sort(function(a,b){
       var va = a[k], vb = b[k];
-      if(k === "fp4" || k === "link" || k === "fp32" || k === "bw" || k === "vram"){
+      if(k === "link" || k === "compute" || k === "bw" || k === "vram"){
         va = (va === null || va === undefined) ? -1 : va;
         vb = (vb === null || vb === undefined) ? -1 : vb;
       }
@@ -733,22 +747,22 @@
 
   /* ---------- 头部统计 ---------- */
   function renderStats(){
-    var vendors = [], maxBw = 0, maxFp32 = 0;
+    var vendors = [], maxBw = 0, maxCompute = 0, compTag = "";
     DATA.forEach(function(d){
       if(vendors.indexOf(d.vendor) === -1) vendors.push(d.vendor);
       if(d.bw !== null && d.bw > maxBw) maxBw = d.bw;
-      if(d.fp32 !== null && d.fp32 > maxFp32) maxFp32 = d.fp32;
+      if(d.compute !== null && d.compute > maxCompute){ maxCompute = d.compute; compTag = d.cpm; }
     });
     byId("glStats").innerHTML =
       '<div class="gl-stat"><b>' + DATA.length + '</b><span>型号</span></div>' +
       '<div class="gl-stat"><b>' + vendors.length + '</b><span>厂商</span></div>' +
       '<div class="gl-stat"><b>' + (maxBw >= 1000 ? (Math.round(maxBw / 100) / 10) : maxBw) + '<em>' + (maxBw >= 1000 ? "TB/s" : "GB/s") + '</em></b><span>峰值显存带宽</span></div>' +
-      '<div class="gl-stat"><b>' + maxFp32 + '<em>TFLOPS</em></b><span>最高 FP32</span></div>';
+      '<div class="gl-stat"><b>' + (maxCompute >= 1000 ? (Math.round(maxCompute / 100) / 10) : maxCompute) + '<em>' + (maxCompute >= 1000 ? "PFLOPS" : "TFLOPS") + '</em></b><span>最高算力 · ' + (compTag || "FP8") + '</span></div>';
   }
 
   /* ---------- 厂商切换 ---------- */
   function renderVendors(){
-    var counts = {}, order = [], known = ["NVIDIA","AMD","Intel","华为昇腾"];
+    var counts = {}, order = [], known = ["NVIDIA","AMD","Intel","华为昇腾","平头哥","昆仑芯"];
     DATA.forEach(function(d){
       if(!d.vendor) return;
       counts[d.vendor] = (counts[d.vendor] || 0) + 1;
@@ -789,8 +803,31 @@
     years.sort(function(a,b){return a-b;});
     byId("glYearChips").innerHTML = years.map(function(y){ return chip("year", y, y + " 年"); }).join("");
 
-    byId("glPrecChips").innerHTML =
-      chip("prec","FP4","支持 FP4") + chip("prec","FP8","支持 FP8") + chip("prec","FP64","支持 FP64");
+    var cps = [];
+    DATA.forEach(function(d){ if(cps.indexOf(d.cpm) === -1) cps.push(d.cpm); });
+    var cpOrder = ["FP8","INT8","FP8（未标称）","未公布"];
+    cps.sort(function(a,b){ return cpOrder.indexOf(a) - cpOrder.indexOf(b); });
+    byId("glCpChips").innerHTML = cps.map(function(c){
+      return chip("cp", c, c === "FP8" ? "FP8 稠密算力" : c === "INT8" ? "仅 INT8 口径" : c);
+    }).join("");
+
+    var precs = [];
+    DATA.forEach(function(d){
+      d.precs.forEach(function(x){
+        /* 只保留纯格式名（FP8 / MXFP4 / INT8…），过滤掉「INT8 等（逐项官方未公布）」这类长描述 */
+        if(!/^[A-Za-z0-9+]{1,7}$/.test(x)) return;
+        if(precs.indexOf(x) === -1) precs.push(x);
+      });
+    });
+    var pref = ["FP64","FP32","TF32","FP16","BF16","FP8","MXFP8","FP4","INT8","INT4"];
+    precs.sort(function(a,b){
+      var ia = pref.indexOf(a), ib = pref.indexOf(b);
+      if(ia === -1 && ib === -1) return a.localeCompare(b, "zh");
+      if(ia === -1) return 1;
+      if(ib === -1) return -1;
+      return ia - ib;
+    });
+    byId("glPrecChips").innerHTML = precs.map(function(x){ return chip("prec", x, x); }).join("");
 
     var vlist = [];
     DATA.forEach(function(d){ if(vlist.indexOf(d.vendor) === -1) vlist.push(d.vendor); });
@@ -803,7 +840,7 @@
   function renderTable(list){
     var body = byId("glTbody");
     if(!list.length){
-      body.innerHTML = '<tr><td colspan="12" class="gl-empty">没有符合条件的型号，试试放宽筛选条件</td></tr>';
+      body.innerHTML = '<tr><td colspan="11" class="gl-empty">没有符合条件的型号，试试放宽筛选条件</td></tr>';
       return;
     }
     var cap = state.limit;
@@ -816,8 +853,7 @@
         '<td class="gl-vendor-td">' + vendorTag(d.vendor) + "</td>" +
         "<td>" + archTag(d.arch) + "</td>" +
         '<td class="gl-num">' + d.year + "</td>" +
-        '<td class="gl-num">' + barCell(numOr0(d.fp32) / MAX.fp32, d.fp32 === null ? "—" : d.fp32, d.fp32) + "</td>" +
-        '<td class="gl-num">' + barCell(numOr0(d.fp4) / MAX.fp4, d.fp4 === null ? "—" : d.fp4, d.fp4) + "</td>" +
+        '<td class="gl-num">' + cvalCell(d) + "</td>" +
         '<td class="gl-num">' + barCell(numOr0(d.vram) / MAX.vram, d.vram === null ? "—" : d.vram, d.vram) + "</td>" +
         '<td class="gl-num">' + barCell(numOr0(d.bw) / MAX.bw, fmt(d.bw), d.bw) + "</td>" +
         '<td class="gl-num">' + barCell(numOr0(d.link) / MAX.link, d.link === null ? "—" : fmt(d.link), d.link) + "</td>" +
@@ -825,12 +861,13 @@
         '<td><button class="gl-mini-btn" data-detail="' + d.id + '">' + (state.expanded === d.id ? "收起" : "详情") + "</button></td>" +
         "</tr>";
       if(state.expanded === d.id){
-        main += '<tr class="gl-detail"><td colspan="12"><div class="gl-detail-in">' +
+        main += '<tr class="gl-detail"><td colspan="11"><div class="gl-detail-in">' +
           "<p>" + esc(d.desc) + "</p>" +
           '<div class="gl-kv">' +
             "<b>厂商：</b>" + esc(d.vendor) + "　<b>封装：</b>" + esc(d.form) + "　<b>部署：</b>" + esc(d.deploy) + "<br>" +
             "<b>显存：</b>" + esc(d.vramLabel) + "<br>" +
             "<b>互联：</b>" + esc(d.linkType) + (d.linkLabel ? "（" + esc(d.linkLabel) + "）" : "") + "<br>" +
+            "<b>算力：</b>" + esc(d.computeLabel || "—") + "<br>" +
             "<b>支持精度：</b>" + d.precs.join(" / ") + "<br>" +
             "<b>名词解释：</b>" + esc(d.note) + "<br>" +
             (d.url ? '<b>官方页面：</b><a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.url.replace(/^https?:\/\//,"")) + " ↗</a>" : "") +
@@ -863,10 +900,10 @@
           '<div class="gl-card-sub" title="' + esc(d.deploy) + '">' + esc(d.deploy) + "</div></div></div>" +
         '<div class="gl-card-tags">' + vendorTag(d.vendor) + archTag(d.arch) + "</div>" +
         '<div class="gl-card-metrics">' +
-          '<div class="gl-cm"><span>FP32</span><b>' + fmt(d.fp32) + "<em>TFLOPS</em></b></div>" +
-          '<div class="gl-cm"><span>显存</span><b>' + fmt(d.vram) + "<em>GB</em></b></div>" +
-          '<div class="gl-cm"><span>带宽</span><b>' + (d.bw >= 1000 ? tbs(d.bw).replace("T","") + "<em>TB/s</em>" : fmt(d.bw) + "<em>GB/s</em>") + "</b></div>" +
-          '<div class="gl-cm"><span>FP4 稠密</span><b>' + (d.fp4 === null ? "—" : d.fp4 + "<em>PFLOPS</em>") + "</b></div>" +
+          '<div class="gl-cm"><span>算力 ' + (d.cpm === "未公布" ? "" : esc(d.cpm)) + '</span><b>' + fmt(d.compute) + "<em>" + (cunit(d) || "—") + "</em></b></div>" +
+          '<div class="gl-cm"><span>显存</span><b>' + fmt(d.vram) + (d.vram === null ? "" : "<em>GB</em>") + "</b></div>" +
+          '<div class="gl-cm"><span>带宽</span><b>' + (d.bw === null ? "—" : d.bw >= 1000 ? tbs(d.bw).replace("T","") + "<em>TB/s</em>" : fmt(d.bw) + "<em>GB/s</em>") + "</b></div>" +
+          '<div class="gl-cm"><span>互联</span><b>' + (d.link === null ? "—" : (d.link >= 1000 ? tbs(d.link).replace("T","") + "<em>TB/s</em>" : fmt(d.link) + "<em>GB/s</em>")) + "</b></div>" +
         "</div>" +
         '<p class="gl-card-desc">' + esc(d.desc) + "</p>" +
         '<div class="gl-card-foot"><label><input type="checkbox" data-check="' + d.id + '"' + (sel ? " checked" : "") + (dis ? " disabled" : "") + ">加入对比</label><span class=\"gl-year\">" + d.year + " · " + esc(d.form) + "</span></div>" +
@@ -949,12 +986,12 @@
       var ang = n * 2.399, rad = n ? 16 + (n - 1) * 9 : 0;
       var cx = X(d.vram || 0) + Math.cos(ang) * rad + ((i % 3) - 1) * 1.6;
       var cy = Y(d.bw || yMin) + Math.sin(ang) * rad + ((i % 5) - 2) * 0.8;
-      var r = 7 + (numOr0(d.fp32) / MAX.fp32) * 13;
+      var r = 7 + (numOr0(d.compute) / MAX.compute) * 13;
       var c = VENDOR_COLOR[d.vendor] || "#4b6b96";
       var sel = state.selected.indexOf(d.id) > -1;
       s += '<circle class="gl-bub" data-id="' + d.id + '" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="' + r.toFixed(1) + '"' +
            ' fill="' + c + '" fill-opacity="' + (sel ? ".95" : ".70") + '" stroke="' + (sel ? "#123a6b" : "#ffffff") + '" stroke-width="' + (sel ? 2 : 1.3) + '"' +
-           ' style="cursor:pointer"><title>' + esc(d.short) + " · " + esc(d.vendor) + " · " + esc(d.vramLabel) + " · " + fmt(d.bw) + " GB/s</title></circle>";
+           ' style="cursor:pointer"><title>' + esc(d.short) + " · " + esc(d.vendor) + " · " + esc(d.vramLabel) + " · " + fmt(d.bw) + " GB/s · " + fmt(d.compute) + " TFLOPS " + esc(d.cpm) + "</title></circle>";
     });
 
     svg.innerHTML = s;
@@ -971,7 +1008,7 @@
       chips.innerHTML = state.selected.map(function(id, i){
         var d = DATA.filter(function(x){ return x.id === id; })[0];
         if(!d) return "";
-        return '<span class="gl-selchip"><i style="background:' + PALETTE[i % 4] + '"></i>' + d.short +
+        return '<span class="gl-selchip"><i style="background:' + PALETTE[i % PALETTE.length] + '"></i>' + d.short +
           '<button data-unselect="' + id + '" title="移除">×</button></span>';
       }).join("");
     }
@@ -1015,7 +1052,7 @@
     });
   }
   setRange("vram","glVram","glVramTxt"," GB");
-  setRange("fp32","glFp32","glFp32Txt"," TFLOPS");
+  setRange("compute","glFp32","glFp32Txt"," TFLOPS");
   setRange("bw","glBw","glBwTxt"," GB/s");
 
   var lab = byId("gpuLab");
@@ -1032,7 +1069,7 @@
       var type = chipEl.getAttribute("data-chip");
       var raw = chipEl.getAttribute("data-val");
       var val = type === "year" ? Number(raw) : raw;
-      var arr = type === "arch" ? state.archs : type === "form" ? state.forms : type === "year" ? state.years : state.precs;
+      var arr = type === "arch" ? state.archs : type === "form" ? state.forms : type === "year" ? state.years : type === "cp" ? state.cps : state.precs;
       var idx = arr.indexOf(val);
       if(idx > -1){ arr.splice(idx,1); chipEl.classList.remove("on"); }
       else { arr.push(val); chipEl.classList.add("on"); }
@@ -1082,8 +1119,8 @@
   }
 
   byId("glReset").addEventListener("click", function(){
-    state.q = ""; state.vendor = "all"; state.archs = []; state.forms = []; state.years = []; state.precs = [];
-    state.vram = 0; state.fp32 = 0; state.bw = 0;
+    state.q = ""; state.vendor = "all"; state.archs = []; state.forms = []; state.years = []; state.precs = []; state.cps = [];
+    state.vram = 0; state.compute = 0; state.bw = 0;
     byId("glSearch").value = "";
     byId("glVram").value = 0; byId("glFp32").value = 0; byId("glBw").value = 0;
     byId("glVramTxt").textContent = "0 GB";
@@ -1106,7 +1143,7 @@
     if(!c){ tip.style.opacity = 0; return; }
     var d = DATA.filter(function(x){ return x.id === c.getAttribute("data-id"); })[0];
     if(!d) return;
-    tip.innerHTML = "<b>" + d.short + "</b>架构 <em>" + d.arch + "</em> · " + d.year + " 年<br>显存 <em>" + d.vramLabel + "</em><br>带宽 <em>" + d.bwLabel + "</em> · FP32 <em>" + d.fp32 + " TFLOPS</em>";
+    tip.innerHTML = "<b>" + d.short + "</b>架构 <em>" + d.arch + "</em> · " + d.year + " 年<br>显存 <em>" + d.vramLabel + "</em><br>带宽 <em>" + d.bwLabel + "</em><br>算力 <em>" + fmt(d.compute) + " " + (cunit(d) || "—") + (d.cpm === "未公布" ? "" : "（" + d.cpm + " 稠密）") + "</em>";
     var rect = byId("glChartWrap").getBoundingClientRect();
     tip.style.left = (e.clientX - rect.left) + "px";
     tip.style.top = (e.clientY - rect.top) + "px";
@@ -1116,12 +1153,28 @@
 
   /* ---------- 对比弹层 ---------- */
   function scoreOf(d){
-    var parts = [[d.fp32,MAX.fp32,30],[d.vram,MAX.vram,25],[d.bw,MAX.bw,25],[d.link,MAX.link,20]];
-    var sum = 0, w = 0;
+    var parts = [[d.compute,MAX.compute,30],[d.vram,MAX.vram,25],[d.bw,MAX.bw,25],[d.link,MAX.link,20]];
+    var sum = 0, w = 0, n = 0;
     parts.forEach(function(p){
-      if(p[0] !== null && p[0] !== undefined){ sum += (p[0] / p[1]) * p[2]; w += p[2]; }
+      if(p[0] !== null && p[0] !== undefined){ sum += (p[0] / p[1]) * p[2]; w += p[2]; n++; }
     });
-    return w ? (sum / w) * 100 : null;
+    /* 有效维度不足 2 项时不评分，避免「只有一项有数就 100 分」的误导 */
+    if(!w || n < 2) return null;
+    return (sum / w) * 100;
+  }
+  function cunit(d){
+    if(d.compute === null) return "";
+    return d.cpm === "INT8" ? "TOPS" : "TFLOPS";
+  }
+  function cvalCell(d){
+    if(d.compute === null){
+      return '<span class="gl-val">—' + (d.cpm && d.cpm !== "未公布" ? cprecTag(d) : "") + '</span>';
+    }
+    return barCell(numOr0(d.compute) / MAX.compute, fmt(d.compute) + cprecTag(d), d.compute);
+  }
+  function cprecTag(d){
+    if(d.cpm === "未公布") return "";
+    return '<em class="gl-cprec">' + esc(d.cpm) + '</em>';
   }
   function scoreText(d){
     var sc = scoreOf(d);
@@ -1130,16 +1183,14 @@
   function pct(v, key){ return Math.max(3, Math.min(100, ((v === null || v === undefined ? 0 : v) / MAX[key]) * 100)); }
 
   var METRICS = [
-    {key:"fp32", label:"FP32 算力", unit:"TFLOPS"},
-    {key:"fp4",  label:"FP4 稠密算力", unit:"PFLOPS"},
-    {key:"vram", label:"显存容量", unit:"GB"},
-    {key:"bw",   label:"显存带宽", unit:"GB/s"},
-    {key:"link", label:"互联带宽", unit:"GB/s"}
+    {key:"compute", label:"算力（FP8/INT8）", unit:"TFLOPS / TOPS"},
+    {key:"vram",    label:"显存容量", unit:"GB"},
+    {key:"bw",      label:"显存带宽", unit:"GB/s"},
+    {key:"link",    label:"互联带宽", unit:"GB/s"}
   ];
 
   function metricsForTab(){
     if(state.tab === "all") return METRICS;
-    if(state.tab === "fp32") return METRICS.filter(function(m){ return m.key === "fp32" || m.key === "fp4"; });
     return METRICS.filter(function(m){ return m.key === state.tab; });
   }
 
@@ -1148,7 +1199,7 @@
       return DATA.filter(function(d){ return d.id === id; })[0];
     }).filter(Boolean);
 
-    var colors = sel.map(function(_, i){ return PALETTE[i % 4]; });
+    var colors = sel.map(function(_, i){ return PALETTE[i % PALETTE.length]; });
 
     var cards = sel.map(function(d, i){
       var c = colors[i];
@@ -1157,11 +1208,11 @@
           '<div class="gl-cc-arch">' + vendorTag(d.vendor) + '<span style="margin-left:7px">' + esc(d.arch) + " · " + d.year + "</span></div></div>" +
           '<button class="gl-cc-remove" data-remove="' + d.id + '" title="移除">✕</button></div>' +
         '<div class="gl-cc-score' + (scoreOf(d) === null ? " na" : "") + '"><b>' + scoreText(d) + "</b><span>" + (scoreOf(d) === null ? "核心规格未公布" : "综合分 / 100") + "</span></div>" +
-        '<div class="gl-cc-meta"><span>FP32 <b>' + fmt(d.fp32) + "</b></span><span>显存 <b>" + fmt(d.vram) + "G</b></span><span>带宽 <b>" + (d.bw >= 1000 ? tbs(d.bw) : fmt(d.bw) + "G") + "</b></span></div>" +
+        '<div class="gl-cc-meta"><span>算力 <b>' + fmt(d.compute) + "</b>" + (d.cpm === "未公布" ? "" : " " + esc(d.cpm)) + "</span><span>显存 <b>" + fmt(d.vram) + "G</b></span><span>带宽 <b>" + (d.bw === null ? "—" : d.bw >= 1000 ? tbs(d.bw) : fmt(d.bw) + "G") + "</b></span></div>" +
       "</div>";
     }).join("");
 
-    var tabs = [["all","综合"],["fp32","算力"],["vram","显存"],["bw","带宽"],["link","互联"]];
+    var tabs = [["all","综合"],["compute","算力"],["vram","显存"],["bw","带宽"],["link","互联"]];
     var tabHtml = tabs.map(function(t){
       return '<button class="gl-cmp-tab' + (state.tab === t[0] ? " on" : "") + '" data-tab="' + t[0] + '">' + t[1] + "</button>";
     }).join("");
@@ -1169,13 +1220,13 @@
     /* 左栏：指标条 —— 当前分项置顶，其余下移并弱化 */
     var metrics = METRICS;
     if(state.tab !== "all"){
-      var focusKeys = state.tab === "fp32" ? ["fp32","fp4"] : [state.tab];
+      var focusKeys = [state.tab];
       var focusList = metrics.filter(function(m){ return focusKeys.indexOf(m.key) > -1; });
       var restList = metrics.filter(function(m){ return focusKeys.indexOf(m.key) === -1; });
       metrics = focusList.concat(restList);
     }
     var barsHtml = metrics.map(function(m){
-      var isFocus = state.tab !== "all" && (m.key === state.tab || (state.tab === "fp32" && m.key === "fp4"));
+      var isFocus = state.tab !== "all" && m.key === state.tab;
       var dim = state.tab !== "all" && !isFocus;
       var best = -1;
       sel.forEach(function(d){ var v = d[m.key]; if(v !== null && v !== undefined && v > best) best = v; });
@@ -1217,12 +1268,12 @@
       if(!arr.length) return null;
       return arr.slice().sort(function(a,b){ return b[key] - a[key]; })[0];
     }
-    var tf = topBy("fp32"), tb = topBy("bw"), tv = topBy("vram");
+    var tf = topBy("compute"), tb = topBy("bw"), tv = topBy("vram");
     var insight = '<div class="gl-insight">◇ <div>' + (scoreOf(top) === null
-        ? "所选型号官方未公布 FP32 / 显存 / 带宽等核心规格，暂不生成综合评分；"
+        ? "所选型号官方未公布算力 / 显存 / 带宽，或有效维度不足 2 项，暂不生成综合评分；"
         : "综合评分最高：<b>" + esc(top.short) + "（" + scoreText(top) + " 分）</b>；") +
-      "评分权重 FP32 30% · 显存 25% · 带宽 25% · 互联 20%（缺失项自动按有效项归一）。" +
-      (sel.length > 1 && tf ? " FP32 最强 <b>" + esc(tf.short) + "</b>" : "") +
+      "评分权重 算力 30% · 显存 25% · 带宽 25% · 互联 20%（缺失项自动按有效项归一）。" +
+      (sel.length > 1 && tf ? " 算力最强 <b>" + esc(tf.short) + "</b>" : "") +
       (sel.length > 1 && tv ? "，显存最大 <b>" + esc(tv.short) + "</b>" : "") +
       (sel.length > 1 && tb ? "，带宽最强 <b>" + esc(tb.short) + "</b>" : "") +
       (sel.length > 1 ? "。" : "") +
@@ -1237,8 +1288,8 @@
       ["架构", function(d){ return archTag(d.arch); }, null],
       ["发布年份", function(d){ return String(d.year); }, null],
       ["封装形态", function(d){ return d.form; }, null],
-      ["FP32 算力", function(d){ return d.fp32 === null ? "—" : "<b>" + fmt(d.fp32) + "</b> TFLOPS"; }, "fp32"],
-      ["FP4 稠密算力", function(d){ return d.fp4 === null ? "—" : "<b>" + d.fp4 + "</b> PFLOPS"; }, "fp4"],
+      ["算力（稠密）", function(d){ return d.compute === null ? "—" : "<b>" + fmt(d.compute) + "</b> " + cunit(d) + (d.cpm === "未公布" ? "" : ' <span class="gl-pchip">' + esc(d.cpm) + "</span>"); }, "compute"],
+      ["算力原始口径", function(d){ return esc(d.computeLabel || "—"); }, null, true],
       ["显存", function(d){ return esc(d.vramLabel); }, "vram", true],
       ["显存带宽", function(d){ return esc(d.bwLabel); }, "bw"],
       ["互联方案", function(d){ return esc(d.linkType); }, null, true],
@@ -1281,7 +1332,7 @@
         "</div>" +
         '<div class="gl-cmp-panel">' +
           "<h4>综合评分排名</h4>" +
-          '<p class="gl-hint">FP32 30% · 显存 25% · 带宽 25% · 互联 20%</p>' +
+          '<p class="gl-hint">算力 30% · 显存 25% · 带宽 25% · 互联 20%</p>' +
           rankHtml +
           '<div class="gl-radar-sep"></div>' +
           "<h4>四维能力雷达</h4>" +
@@ -1312,7 +1363,7 @@
   function radarSvg(sel, colors){
     var cx = 165, cy = 158, R = 104;
     var dims = [
-      {k:"fp32", label:"FP32"},
+      {k:"compute", label:"算力"},
       {k:"vram", label:"显存"},
       {k:"bw", label:"带宽"},
       {k:"link", label:"互联"}
@@ -1349,7 +1400,7 @@
       return "<span" + (na ? " style='opacity:.5'" : "") + "><i style='background:" + colors[i] + "'></i>" + d.short + (na ? "（待补）" : "") + "</span>";
     }).join("") + "</div>";
     var missing = sel.filter(function(d){ return scoreOf(d) === null; }).map(function(d){ return d.short; });
-    if(missing.length) s += "<div class='gl-radar-note'>" + missing.join("、") + " 官方未公布 FP32 / 显存 / 带宽，暂不参与雷达与综合评分</div>";
+    if(missing.length) s += "<div class='gl-radar-note'>" + missing.join("、") + " 官方未公布算力 / 显存 / 带宽（或有效维度不足），暂不参与雷达与综合评分</div>";
     return s;
   }
 
@@ -1396,8 +1447,11 @@
     "简称":"short",
     "年份":"year","发布年份":"year",
     "架构":"arch",
+    "算力_TFLOPS":"compute","算力":"compute","算力值":"compute",
+    "FP8_TFLOPS":"compute","INT8_TOPS":"compute","INT_TOPS":"compute",
+    "算力精度":"prec","算力口径":"prec","口径":"prec",
+    "算力描述":"computeLabel","算力说明":"computeLabel",
     "FP32_TFLOPS":"fp32","FP32":"fp32",
-    "FP4_PFLOPS":"fp4","FP4":"fp4",
     "显存描述":"vramLabel",
     "显存_GB":"vram","显存":"vram",
     "带宽描述":"bwLabel",
@@ -1413,7 +1467,8 @@
     "官网":"url"
   };
 
-  var SHEET_VENDOR = {"nvidia":"NVIDIA","amd":"AMD","intel":"Intel","ascend":"华为昇腾","昇腾":"华为昇腾","华为":"华为昇腾"};
+  var SHEET_VENDOR = {"nvidia":"NVIDIA","amd":"AMD","intel":"Intel","ascend":"华为昇腾","昇腾":"华为昇腾","华为":"华为昇腾",
+    "平头哥":"平头哥","t-head":"平头哥","t-head":"平头哥","昆仑芯":"昆仑芯","kunlun":"昆仑芯","kunlunxin":"昆仑芯"};
 
   function normKey(h){
     return String(h || "").replace(/^\uFEFF/, "").replace(/\s+/g, "").replace(/[（）()［］\[\]]/g, "").trim();
@@ -1493,13 +1548,21 @@
       list.push({
         id: base + (seq > 1 ? "#" + seq : ""), vendor: vendor, name: name, short: short,
         year: toNum(get("year")) || 0, arch: get("arch") || "未知",
-        fp32: toNum(get("fp32")), fp4: toNum(get("fp4")),
         vram: vram, vramLabel: get("vramLabel") || (vram === null ? "—" : vram + " GB"),
         bw: bw, bwLabel: get("bwLabel") || (bw === null ? "—" : fmt(bw) + " GB/s"),
         link: toNum(get("link")), linkLabel: get("linkLabel"), linkType: get("linkType") || "—",
         form: get("form") || "—", deploy: get("deploy") || "—",
         precs: precs, desc: get("desc"), note: get("note"), url: get("url")
       });
+      var rec = list[list.length - 1];
+      rec.compute = toNum(get("compute"));
+      rec.computeLabel = get("computeLabel");
+      rec.prec = get("prec");
+      if(rec.compute === null && toNum(get("fp32")) !== null){
+        rec.compute = toNum(get("fp32"));
+        rec.prec = rec.prec || "FP32";
+      }
+      rec.cpm = rec.prec ? (rec.prec.indexOf("FP8") === 0 ? "FP8" : rec.prec.indexOf("INT8") === 0 ? "INT8" : rec.prec) : (rec.compute === null ? "未公布" : "FP8");
     });
     return list;
   }
@@ -1645,9 +1708,9 @@
 
   /* ---------- 渲染主流程 ---------- */
   function computeMax(){
-    ["fp32","fp4","vram","bw","link"].forEach(function(k){ MAX[k] = 1; });
+    ["compute","vram","bw","link"].forEach(function(k){ MAX[k] = 1; });
     DATA.forEach(function(d){
-      ["fp32","fp4","vram","bw","link"].forEach(function(k){
+      ["compute","vram","bw","link"].forEach(function(k){
         if(d[k] !== null && d[k] > MAX[k]) MAX[k] = d[k];
       });
     });
@@ -1656,7 +1719,7 @@
   function setupRanges(){
     var v = byId("glVram"), f = byId("glFp32"), b = byId("glBw");
     v.max = Math.max(32, Math.ceil(MAX.vram / 8) * 8); v.step = 8;
-    f.max = Math.max(20, Math.ceil(MAX.fp32 / 10) * 10); f.step = MAX.fp32 > 200 ? 25 : 10;
+    f.max = Math.max(20, Math.ceil(MAX.compute / 10) * 10); f.step = MAX.compute > 200 ? 250 : 10;
     b.max = Math.max(2000, Math.ceil(MAX.bw / 1000) * 1000); b.step = 1000;
     v.value = 0; f.value = 0; b.value = 0;
   }
@@ -1685,7 +1748,7 @@
 
   function loadData(){
     setSource("正在读取 <code>gpu_data_input.xlsx</code> …", true);
-    byId("glTbody").innerHTML = '<tr><td colspan="12" class="gl-empty">正在读取 gpu_data_input.xlsx …</td></tr>';
+    byId("glTbody").innerHTML = '<tr><td colspan="11" class="gl-empty">正在读取 gpu_data_input.xlsx …</td></tr>';
     fetch(XLSX_PATH + "?v=" + Date.now(), {cache: "no-store"})
       .then(function(r){ if(!r.ok) throw new Error("HTTP " + r.status); return r.arrayBuffer(); })
       .then(function(buf){ return readWorkbook(buf); })
@@ -1698,13 +1761,13 @@
 
   function loadCSV(){
     setSource("正在读取 <code>gpu_data_input.csv</code> …", true);
-    byId("glTbody").innerHTML = '<tr><td colspan="12" class="gl-empty">正在读取 gpu_data_input.csv …</td></tr>';
+    byId("glTbody").innerHTML = '<tr><td colspan="11" class="gl-empty">正在读取 gpu_data_input.csv …</td></tr>';
     return fetch(CSV_PATH + "?v=" + Date.now(), {cache: "no-store"})
       .then(function(r){ if(!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
       .then(function(t){ init(parseRows(t), "gpu_data_input.csv"); })
       .catch(function(e){
         if(window.console) console.warn("[gpu-compare] CSV 读取失败：", e);
-        byId("glTbody").innerHTML = '<tr><td colspan="12" class="gl-empty">数据未加载</td></tr>';
+        byId("glTbody").innerHTML = '<tr><td colspan="11" class="gl-empty">数据未加载</td></tr>';
         showErr();
       });
   }
